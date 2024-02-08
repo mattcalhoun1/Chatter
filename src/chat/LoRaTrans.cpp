@@ -181,7 +181,6 @@ bool LoRaTrans::send(uint8_t* message, int length, uint8_t address) {
 }
 
 long LoRaTrans::retrieveMessage() {
-  logConsole("Receiving .... loratrans");
   uint8_t len = sizeof(buf);
   uint8_t from;
   if (rfm9x_manager->recvfromAckTimeout(buf, &len, LORA_ACK_TIMEOUT, &from)) {

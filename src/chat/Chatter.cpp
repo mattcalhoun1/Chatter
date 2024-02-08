@@ -24,7 +24,6 @@ bool Chatter::init () {
             encryptor->getTextSlotBuffer(ssid);
             //logConsole ("SSID stuff: " +String(ssid));
 
-
             // initialize statuses to no device
             for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
                 status[d] = ChatNoDevice;
@@ -325,8 +324,10 @@ void Chatter::ingestPacketMetadata (const char* rawPacket, int messageSize) {
     receiveBuffer.rawContentLength = messageSize;//channel->getMessageSize();
     receiveBuffer.contentLength = messageSize - receiveBuffer.headerLength;//channel->getMessageSize() - receiveBuffer.headerLength;
 
-    // copy the raw content into content for now
-    memcpy(receiveBuffer.content, receiveBuffer.rawMessage, messageSize);
+    if (mode == BridgeMode) {
+        // copy the raw content into content for now
+        memcpy(receiveBuffer.content, receiveBuffer.rawMessage, messageSize);
+    }
 
     // if it's unencrypted and the first 3 letters of the raw message are 'HHH', this is a header record
     receiveBuffer.isMetadata = false;
@@ -344,7 +345,7 @@ bool Chatter::retrieveMessage () {
     if(retrieved) {
         ingestPacketMetadata(hotChannel);
         if (packetStore-> wasReceived ((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId, receiveBuffer.packetId)) {
-            logConsole("received duplicate, ignoring...");
+            //logConsole("received duplicate, ignoring...");
             return false;
         }
         else {
@@ -361,6 +362,7 @@ bool Chatter::retrieveMessage () {
                     logConsole("Message ID: " + String((char*)receiveBuffer.messageId));
                     logConsole("Chunk ID: " + String((char*)receiveBuffer.chunkId));
                     logConsole("Length: " + String(receiveBuffer.rawContentLength));
+                    logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));
 
                     // in bridge mode or with a signature, we do not decrypt
                     if (mode == BridgeMode || receiveBuffer.encryptionFlag == PacketSigned) {
@@ -431,8 +433,14 @@ bool Chatter::retrieveMessage () {
                 }
                 else if (this->receiveBuffer.isMetadata) {
                     // this is an unencrypted header. save it so it can be part of the sig check
+                    // bridge needs to keep the header portion, so it knows where the message goes.
+                    // any other recipient needs to strip the header portion, since it only cares about the header content
                     if (mode != BridgeMode) {
                         memcpy(receiveBuffer.content, receiveBuffer.rawMessage + receiveBuffer.headerLength, receiveBuffer.contentLength);
+
+                        // in case this device is the recipient, the header is not considered metadata for saving purposes.
+                        // the way this is saved should probably be refactored a little
+                        receiveBuffer.isMetadata = false;
                     }
                     receiveBufferMessageType = MessageTypeHeader;
 

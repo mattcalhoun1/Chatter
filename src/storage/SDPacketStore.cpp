@@ -171,26 +171,26 @@ bool SDPacketStore::hashMatches (const char* senderId, const char* messageId, En
   generateHash(senderId, messageId, hashCalcBuffer, encryptor);
   memset(filePacketBuffer, 0, STORAGE_CONTENT_BUFFER_SIZE);
 
-  int sigPacketSize = readPacket(senderId, messageId, STORAGE_SIGNATURE_PACKET_ID, filePacketBuffer, STORAGE_SIG_PACKET_EXPECTED_LENGTH, encryptor);
-  if (sigPacketSize == STORAGE_SIG_PACKET_EXPECTED_LENGTH) {
+  // sig packet is not encrypted
+  int sigPacketSize = readPacket(senderId, messageId, STORAGE_SIGNATURE_PACKET_ID, filePacketBuffer, STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH , encryptor);
+
+  if (sigPacketSize == STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH) {
     // the provided hash (or first 32 of it) is expected to contain a matching hash
+    uint8_t* packetHashLocation = filePacketBuffer + STORAGE_PACKET_HEADER_LENGTH;
     bool match = true;
     for (int i = 0; i < STORAGE_HASH_LENGTH; i++) {
-      if (hashCalcBuffer[i] != filePacketBuffer[i]) {
+      if (hashCalcBuffer[i] != packetHashLocation[i]) {
         match = false;
       }
     }
     return match;
   }
   else {
-    logConsole("Error: signature packet on disk is not expected size of " + String(STORAGE_SIG_PACKET_EXPECTED_LENGTH) + ", but instead is " + String(sigPacketSize));
+    logConsole("Error: signature packet on disk is not expected size of " + String(STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH) + ", but instead is " + String(sigPacketSize));
   }
+
   return false;
 }
-
-/*int generateHash (uint8_t* contentToHash, int len, uint8_t* hashBuffer) {
-
-}*/
 
 int SDPacketStore::generateHash (const char* senderId, const char* messageId, uint8_t* hashBuffer) {
   return generateHash(senderId, messageId, hashBuffer, nullptr);
@@ -214,6 +214,7 @@ int SDPacketStore::generateHash (const char* senderId, const char* messageId, ui
         return 0;
       }
     }
+    Serial.println("");
 
     // Now calculate the hash and put it into the buffer
     hasher.finalize(hashBuffer, hasher.hashSize());
