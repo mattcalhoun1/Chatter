@@ -4,6 +4,8 @@
 
 ZeroRtClock::ZeroRtClock () {
   rtc.begin(); // initialize RTC
+
+  syncWithExternalRtc();
 }
 
 bool ZeroRtClock::syncWithExternalRtc () {
