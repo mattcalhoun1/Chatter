@@ -21,6 +21,8 @@ class RTClockBase {
 
         virtual bool readLatestTime () = 0;
 
+        virtual bool syncWithExternalRtc () = 0;
+
     protected:
         const char* sortableTimeFormat = "%02d%02d%02d%02d%02d%02d"; // YYMMDDhhmmss
         const char* viewableTimeFormat = "%02d/%02d/%02d %02d:%02d:%02d"; // MM/DD/YYYY hh:mm:ss

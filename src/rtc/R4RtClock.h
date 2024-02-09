@@ -15,7 +15,8 @@ class R4RtClock : public RTClockBase {
     public:
         R4RtClock();
         bool isFunctioning ();
-
+        bool syncWithExternalRtc ();
+        
     protected:
         bool readLatestTime ();
 

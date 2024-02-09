@@ -3,31 +3,23 @@
 #ifdef ARDUINO_SAMD_MKRZERO
 
 ZeroRtClock::ZeroRtClock () {
-  DS3231 ds3231; // get initial timeDate
+  rtc.begin(); // initialize RTC
+}
 
+bool ZeroRtClock::syncWithExternalRtc () {
   bool century = false;
-  int month = ds3231.getMonth(century);
-  int date = ds3231.getDate();
-  int year = ds3231.getYear();
   bool h12Flag;
   bool pmFlag;
 
-  int hour = ds3231.getHour(h12Flag, pmFlag);
-  int minute = ds3231.getMinute();
-  int second = ds3231.getSecond();
-
-
-  rtc.begin(); // initialize RTC
-
   // Set the time
-  rtc.setHours(hour);
-  rtc.setMinutes(minute);
-  rtc.setSeconds(second);
+  rtc.setHours(ds3231.getHour(h12Flag, pmFlag));
+  rtc.setMinutes(ds3231.getMinute());
+  rtc.setSeconds(ds3231.getSecond());
 
   // Set the date
-  rtc.setDay(date);
-  rtc.setMonth(month);
-  rtc.setYear(year);
+  rtc.setDay(ds3231.getDate());
+  rtc.setMonth(ds3231.getMonth(century));
+  rtc.setYear(ds3231.getYear());
 }
 
 int ZeroRtClock::getYear() {

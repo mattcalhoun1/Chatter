@@ -3,9 +3,13 @@
 #ifdef ARDUINO_UNOR4_WIFI
 
 R4RtClock::R4RtClock () {
-  DS3231 ds3231; // get initial timeDate
+  RTC.begin();
 
-  bool century = false;
+  syncWithExternalRtc();
+}
+
+bool R4RtClock::syncWithExternalRtc () {
+  /*bool century = false;
   int month = ds3231.getMonth(century);
   int date = ds3231.getDate();
   int year = ds3231.getYear();
@@ -14,27 +18,14 @@ R4RtClock::R4RtClock () {
 
   int hour = ds3231.getHour(h12Flag, pmFlag);
   int minute = ds3231.getMinute();
-  int second = ds3231.getSecond();
-
-
-  //rtc.begin(); // initialize RTC
-  RTC.begin();
+  int second = ds3231.getSecond();*/
 
   time_t now = RTClib::now().unixtime();
 
-  //RTCTime startTime(date, month, year + 2000, hour, minute, second);
   RTCTime startTime(now);
   RTC.setTime(startTime);
 
-  // Set the time
-  //rtc.setHours(hour);
-  //rtc.setMinutes(minute);
-  //rtc.setSeconds(second);
-
-  // Set the date
-  //rtc.setDay(date);
-  //rtc.setMonth(month);
-  //rtc.setYear(year);
+  return RTC.isRunning();
 }
 
 bool R4RtClock::isFunctioning () {

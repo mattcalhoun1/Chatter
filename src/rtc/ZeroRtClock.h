@@ -13,7 +13,7 @@ class ZeroRtClock : public RTClockBase {
     public:
         ZeroRtClock();
         bool isFunctioning ();
-        //bool populateTimeDateStrings ();
+        bool syncWithExternalRtc ();
 
         int getYear();
         int getMonth();
@@ -27,6 +27,7 @@ class ZeroRtClock : public RTClockBase {
         void updateTimeBuffer();
 
         RTCZero rtc;
+        DS3231 ds3231; // The standalone i2c rtc
 };
 
 #endif // zerortclock_h
