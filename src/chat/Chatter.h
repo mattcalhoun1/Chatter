@@ -120,7 +120,7 @@ class Chatter : ChatStatusCallback {
     Encryptor* encryptor;
     RTClockBase* rtc;
 
-    char deviceId[7]; // 6 digit device id
+    char deviceId[CHATTER_DEVICE_ID_SIZE+1];
     char ssid[ENC_DATA_SLOT_BUFFER_SIZE];
 
     void logConsole(String msg);

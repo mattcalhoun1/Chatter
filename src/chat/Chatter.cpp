@@ -14,8 +14,8 @@ bool Chatter::init () {
             logConsole("Encryption module connected");
 
             const char* did = encryptor->getDeviceId();
-            memcpy(deviceId, did, 6);
-            deviceId[6] = '\0';
+            memcpy(deviceId, did, CHATTER_DEVICE_ID_SIZE);
+            deviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
 
             // preload encryption key
             encryptor->loadEncryptionKey(ENCRYPTION_KEY_SLOT);
@@ -236,9 +236,9 @@ uint8_t Chatter::getAddress(const char* deviceId) {
 uint8_t Chatter::getSelfAddress () {
     // self address is numeric last 3 digits of device id
     char sAddr[4];
-    sAddr[0] = deviceId[3];
-    sAddr[1] = deviceId[4];
-    sAddr[2] = deviceId[5];
+    sAddr[0] = deviceId[5];
+    sAddr[1] = deviceId[6];
+    sAddr[2] = deviceId[7];
     sAddr[3] = '\0';
 
     return (uint8_t)atoi(sAddr);
@@ -458,7 +458,7 @@ bool Chatter::retrieveMessage () {
                 receiveBufferMessageType = hotChannel->getMessageType();
             }
             else {
-                logConsole("This device is not the receipient. Ignoring.");
+                logConsole("This device (" + String(deviceId) + ") is not the receipient (" + String((char*)receiveBuffer.recipient) + "). Ignoring.");
             }
         }
     }
@@ -656,8 +656,8 @@ int Chatter::generateHeader (const char* recipientDeviceId, char* messageId, Cha
         headerBuffer[headerPosition++] = flags->Flag5;
     }
 
-    // 16 rand
-    for (int i = 0; i < 16; i++) {
+    // 14 rand
+    for (int i = 0; i < 14; i++) {
         headerBuffer[headerPosition] = (uint8_t)encryptor->getRandom();
         headerPosition++;
     }

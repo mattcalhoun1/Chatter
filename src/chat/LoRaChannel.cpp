@@ -33,9 +33,9 @@ uint8_t LoRaChannel::getSelfAddress () {
 uint8_t LoRaChannel::getAddress (const char* otherDeviceId) {
     // address is numeric last 3 digits of device id
     char sAddr[4];
-    sAddr[0] = otherDeviceId[3];
-    sAddr[1] = otherDeviceId[4];
-    sAddr[2] = otherDeviceId[5];
+    sAddr[0] = otherDeviceId[5];
+    sAddr[1] = otherDeviceId[6];
+    sAddr[2] = otherDeviceId[7];
     sAddr[3] = '\0';
 
     return (uint8_t)atoi(sAddr);

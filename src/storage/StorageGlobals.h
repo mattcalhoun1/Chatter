@@ -2,11 +2,11 @@
 #define STORAGEGLOBALS_H
 
 #define STORAGE_LOG_ENABLED true
-#define STORAGE_DEVICE_ID_LENGTH 6
+#define STORAGE_DEVICE_ID_LENGTH 8
 #define STORAGE_PUBLIC_KEY_LENGTH 128 // actually only 128, need terminator byte
 #define STORAGE_HASH_BUFFER_SIZE 150
 #define STORAGE_HASH_LENGTH 32 //sha256
-#define STORAGE_PACKET_HEADER_LENGTH 19
+#define STORAGE_PACKET_HEADER_LENGTH 23
 
 #define STORAGE_CONTENT_MAX_UNENCRYPTED_SIZE 130 // max allowed unencrypted
 #define STORAGE_CONTENT_BUFFER_SIZE 150 // tmp buffer for holding message content. higher in case of encryption

@@ -214,7 +214,6 @@ int SDPacketStore::generateHash (const char* senderId, const char* messageId, ui
         return 0;
       }
     }
-    Serial.println("");
 
     // Now calculate the hash and put it into the buffer
     hasher.finalize(hashBuffer, hasher.hashSize());

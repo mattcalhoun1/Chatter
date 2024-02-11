@@ -209,7 +209,8 @@ bool UdpChannel::checkUdpInput () {
           buf[i] = (uint8_t)packetBuffer[i];
       }
       
-      if ((char)buf[0] == UDP_PREFIX[0]) {
+      // if the message is intended for this network
+      if (memcmp(buf, hostName, CHATTER_GLOBAL_NET_ID_SIZE+CHATTER_LOCAL_NET_ID_SIZE) == 0) {
         lastMessageSize = bytesRead;
         logConsole("Received message of " + String(lastMessageSize) + " bytes from " + String(Udp.remoteIP()[3]));
         lastSender =  Udp.remoteIP()[3];
