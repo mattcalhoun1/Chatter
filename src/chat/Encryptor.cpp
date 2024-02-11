@@ -6,7 +6,7 @@ bool Encryptor::init() {
     return false;
   }
 
-  if (!ECCX08.locked()) {
+  if (!lockEncryptionDevice()) {
     logConsole("The ECC508/ECC608 is not locked!");
     return false;
   }
@@ -146,6 +146,57 @@ void Encryptor::loadEncryptionKey (int slot) {
     this->encryptionKeyBuffer[i] = (uint8_t)(this->hexBuffer[i]);
   }
   loadedEncryptionKeySlot = slot;
+}
+
+bool Encryptor::lockEncryptionDevice () {
+  if (!ECCX08.locked()) {
+    if (!ECCX08.writeConfiguration(ECCX08_DEFAULT_TLS_CONFIG)) {
+      logConsole("Writing default config to encryption device failed");
+      return false;
+    }
+
+    if (!ECCX08.lock()) {
+      logConsole("Locking ECCX08 configuration failed!");
+      return false;
+    }
+
+    logConsole("Encryption device successfully locked");
+
+    // since this device was just locked, generate the initial keypair
+    generateNewKeypair(CHATTER_SIGN_PK_SLOT, CHATTER_STORAGE_PK_SLOT, CHATTER_SSC_YEAR, CHATTER_SSC_MONTH, CHATTER_SSC_DATE, CHATTER_SSC_HOUR, CHATTER_SSC_VALID);
+  }
+
+  return true;
+}
+
+bool Encryptor::generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire) {
+  if (!ECCX08SelfSignedCert.beginStorage(pkSlot, pkStorage, true)) {
+    logConsole("Error starting self signed cert generation!");
+    return false;
+  }
+
+  // if rtc is available, use that instead
+  ECCX08SelfSignedCert.setCommonName(ECCX08.serialNumber());
+  ECCX08SelfSignedCert.setIssueYear(year);
+  ECCX08SelfSignedCert.setIssueMonth(month);
+  ECCX08SelfSignedCert.setIssueDay(day);
+  ECCX08SelfSignedCert.setIssueHour(hour);
+  ECCX08SelfSignedCert.setExpireYears(expire);
+
+  String cert = ECCX08SelfSignedCert.endStorage();
+
+  if (!cert) {
+    logConsole("Error generating self signed cert!");
+    return false;
+  }
+
+  logConsole("New Cert: ");
+  logConsole(cert);
+
+  logConsole("SHA1: ");
+  logConsole(ECCX08SelfSignedCert.sha1());
+
+  return true;
 }
 
 bool Encryptor::loadPublicKey(int slot) {

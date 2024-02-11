@@ -3,6 +3,9 @@
 #include "ChatGlobals.h"
 #include <SHA256.h>
 #include "../storage/TrustStore.h"
+#include <utility/ECCX08SelfSignedCert.h>
+#include <utility/ECCX08DefaultTLSConfig.h>
+
 
 /*
    Based on Atecc608
@@ -77,7 +80,11 @@ class Encryptor {
     // debugging - move back to private
     void loadEncryptionKey (int slot);
 
+    bool generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire);
+
   protected:
+    bool lockEncryptionDevice ();
+
     void logConsole(String msg);
     byte signatureBuffer[ENC_SIG_BUFFER_SIZE];
     byte messageBuffer[ENC_MSG_BUFFER_SIZE]; // can only sign exactly 32 bytes
