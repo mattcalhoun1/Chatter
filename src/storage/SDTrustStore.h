@@ -16,9 +16,16 @@ class SDTrustStore : public TrustStore {
         bool loadAlias(const char* deviceId, char* aliasBuffer);
         bool addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey);
         bool addTrustedDevice (const char* deviceId, const char* alias, const char* key, bool overwrite);
+        bool removeTrustedDevice (const char* deviceId);
+        bool clearTruststore ();
+        bool findDeviceId (const char* key, char* deviceIdBuffer);
+
     private:
         bool writeLineToFile (File* file, const char* content);
-        const char* publicKeysDir = "/trusted/";
+        const char* publicKeysDir = "/trst/";
+
+        char fullFileName[STORAGE_MAX_TRUSTSTORE_FILENAME_LENGTH];
+        void populateFullFileName(const char* deviceId);
 };
 
 #endif

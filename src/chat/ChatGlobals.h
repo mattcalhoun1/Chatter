@@ -5,6 +5,16 @@
 //#define WIFI_ONBOARD true
 #define AIRLIFT_ONBOARD true
 
+#define BASE_LORA_ADDRESS "000" // all networks must have a base lora device, which is the master
+#define BASE_WIFI_ADDRESS "001"
+#define BASE_CLOUD_ADDRESS "002"
+
+#define DEVICE_TYPE_BRIDGE_LORA "BL"
+#define DEVICE_TYPE_BRIDGE_WIFI "BW"
+#define DEVICE_TYPE_BRIDGE_CLOUD "BC"
+#define DEVICE_TYPE_COMMUNICATOR "C0" // gen 0 communicator
+#define DEVICE_TYPE_RAW "XX" // direct serial entry (like from ide)
+
 #define CHAT_LOG_ENABLED true
 #define CHAT_MAX_CHANNELS 2
 
@@ -51,9 +61,8 @@
 #define CHATTER_EXPIRY_NAF_SECONDS 600 // 10 min clock diff after
 #define CHATTER_EXPIRY_DATE_LENGTH 12
 
-#define CHATTER_BROADCAST_ID "USCAL255"
+#define CHATTER_BROADCAST_ID "255"
 
-#define UDP_PREFIX "C"
 #define WIFI_SSID_SLOT 14
 #define DEVICE_ID_SLOT 9 // unique alphanumeric ID of the device. Optionally add extra config since we have 72 bytes here
 

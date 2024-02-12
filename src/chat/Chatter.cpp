@@ -32,11 +32,11 @@ bool Chatter::init () {
 
             logConsole("Known Devices: ");
             List<String> others = trustStore->getDeviceIds();
+            char otherDeviceAlias[12];
             for (int i = 0; i < others.getSize(); i++) {
                 const String& otherDeviceStr = others[i];
                 // try loading public key for that
                 const char* otherDeviceId = otherDeviceStr.c_str();
-                char otherDeviceAlias[12];
                 trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
                 trustStore->loadPublicKey(otherDeviceId, (char*)encryptor->getPublicKeyBuffer());
                 logConsole("Device: " + String(otherDeviceId) + ", Alias: " + String(otherDeviceAlias));
@@ -507,6 +507,12 @@ bool Chatter::broadcast (String message) {
 
 bool Chatter::broadcast(uint8_t *message, uint8_t length) {
     ChatterChannel* channel = getDefaultChannel();
+
+    // broadcast to own network
+    char broadcastAddress[CHATTER_DEVICE_ID_SIZE + 1];
+    memcpy(broadcastAddress, this->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
+    memcpy(broadcastAddress + (CHATTER_DEVICE_ID_SIZE - 3), CHATTER_BROADCAST_ID, 3);
+    broadcastAddress[CHATTER_DEVICE_ID_SIZE] = '\0';
 
     // prime with a header
     primeSendBuffer (CHATTER_BROADCAST_ID, channel, false, false, false, "ABC", "001");

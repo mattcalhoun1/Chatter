@@ -5,8 +5,6 @@
 #ifndef SDPACKETSTORE_H
 #define SDPACKETSTORE_H
 
-#define MAX_FILENAME_SIZE 64
-
 class SDPacketStore : public PacketStore {
     public:
         bool init ();
@@ -73,8 +71,8 @@ class SDPacketStore : public PacketStore {
         uint8_t filePacketBuffer[STORAGE_CONTENT_BUFFER_SIZE]; // use this buffer to read footer
         uint8_t hashCalcBuffer[STORAGE_HASH_LENGTH]; // buffer for when this class calcs hash    
 
-        char packetFileName[MAX_FILENAME_SIZE]; // reusable so we don't keep recreating on the stack
-        char packetDirectoryName[MAX_FILENAME_SIZE];
+        char packetFileName[STORAGE_MAX_FILENAME_LENGTH]; // reusable so we don't keep recreating on the stack
+        char packetDirectoryName[STORAGE_MAX_FILENAME_LENGTH];
 
         char senderId[STORAGE_DEVICE_ID_LENGTH + 1];
         char messageId[STORAGE_MESSAGE_ID_LENGTH + 1];

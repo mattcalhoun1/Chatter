@@ -14,6 +14,9 @@ class TrustStore : public StorageBase {
         virtual bool loadAlias(const char* deviceId, char* aliasBuffer) = 0;
         virtual bool addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey) = 0;
         virtual bool addTrustedDevice (const char* deviceId, const char* alias, const char* key, bool overwrite) = 0;
+        virtual bool removeTrustedDevice (const char* deviceId) = 0;
+        virtual bool clearTruststore () = 0;
+        virtual bool findDeviceId (const char* key, char* deviceIdBuffer) = 0;
 };
 
 #endif

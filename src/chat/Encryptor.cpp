@@ -23,24 +23,6 @@ bool Encryptor::init() {
     return false;
   }
 
-  // TEMP
-  /*memcpy(deviceId, "USCAL001", 8);
-  deviceId[8] = '\0';
-  setTextSlotBuffer(deviceId);
-  saveDataSlot(DEVICE_ID_SLOT);*/
-
-  if (memcmp(deviceId, "US", 2) != 0) {
-    logConsole("Updating to 8 digit device id");
-    for (int i = 7; i > 1; i--) {
-      deviceId[i] = deviceId[i - 2];
-    }
-    deviceId[0] = 'U';
-    deviceId[1] = 'S';
-    deviceId[8] = '\0';
-    setTextSlotBuffer(deviceId);
-    saveDataSlot(DEVICE_ID_SLOT);    
-  }
-
   generateNextVolatileKey();
 
   return true;  
@@ -59,6 +41,9 @@ const char* Encryptor::getDeviceId() {
 }
 
 void Encryptor::syncKeys () {
+  // clear out existing trustStore
+  trustStore->clearTruststore();
+
   // insert setup code here if necessary
   // public keys:
   const char* pk_00 = "252923C6847099562B67045A2BACF1FFEB05F784A2E7AF40E5A6B03C074DA1221344369E32EB15BFB96760585856E22A41238E81CC40B262B8C4384F608DB416";
@@ -71,7 +56,7 @@ void Encryptor::syncKeys () {
   trustStore->addTrustedDevice("USCAL200", "Base_0", pk_02);
 
   const char* pk_03 = "38A1FB9F68FA1CAFA563084CE9C3FB4AE96DA5D024E6A7D987D4206281EBE13CF6FA45ABECB399BA023DFBA9024F435D80DC7B7C162710FF7006A759F35BAF1D";
-  trustStore->addTrustedDevice("USCAL201", "Base_1", pk_02);
+  trustStore->addTrustedDevice("USCAL201", "Base_1", pk_03);
 }
 
 long Encryptor::getRandom() {

@@ -25,6 +25,15 @@ enum ChatterMode {
   BridgeMode = 1
 };
 
+enum ChatterDeviceType {
+  ChatterDeviceUnknown = 0,
+  ChatterDeviceBridgeLora = 1,
+  ChatterDeviceBridgeWifi = 2,
+  ChatterDeviceBridgeCloud = 3,
+  ChatterDeviceCommunicator = 4,
+  ChatterDeviceRaw = 5
+};
+
 class Chatter : ChatStatusCallback {
   public:
     Chatter(ChatterMode _mode, PacketStore* _packetStore, TrustStore* _trustStore, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {mode = _mode, packetStore = _packetStore; trustStore =_trustStore; rtc = _rtc, statusCallback = _statusCallback; }
@@ -87,6 +96,8 @@ class Chatter : ChatStatusCallback {
     ChatterMessageFlags getMessageFlags () { return receiveBuffer.flags; }
 
     Encryptor* getEncryptor() {return encryptor;}
+    TrustStore* getTrustStore() {return trustStore;}
+    RTClockBase* getRtc() {return rtc;}
 
   private:
     ChatterMode mode;

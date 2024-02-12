@@ -8,6 +8,9 @@
 #define STORAGE_HASH_LENGTH 32 //sha256
 #define STORAGE_PACKET_HEADER_LENGTH 23
 
+#define STORAGE_MAX_FILENAME_LENGTH 64
+#define STORAGE_MAX_TRUSTSTORE_FILENAME_LENGTH 16
+
 #define STORAGE_CONTENT_MAX_UNENCRYPTED_SIZE 130 // max allowed unencrypted
 #define STORAGE_CONTENT_BUFFER_SIZE 150 // tmp buffer for holding message content. higher in case of encryption
 

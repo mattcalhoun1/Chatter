@@ -427,7 +427,7 @@ bool SDPacketStore::saveMessageTimestamp (const char* senderId, const char* mess
 
 int SDPacketStore::pruneAgedMessages (const char* oldestDatetime) {
   int prunedMessageCount = 0;
-  memset(packetFileName, 0, MAX_FILENAME_SIZE);
+  memset(packetFileName, 0, STORAGE_MAX_FILENAME_LENGTH);
   char currentTs[15]; // should be 12 digits yymmddhhmmss, plus the 't' , plus terminator
   const char* allMessagedirs[] = {messageDir, airOutDir, bridgeOutDir};
   for (int dirCount = 0; dirCount < 4; dirCount++) {
@@ -484,7 +484,7 @@ int SDPacketStore::pruneAgedMessages (const char* oldestDatetime) {
 
 bool SDPacketStore::readOldestPacketDetails (ChatterPacketMetaData* packetBuffer, const char* folder) {
   bool anyPacketFound = false;
-  memset(packetFileName, 0, MAX_FILENAME_SIZE);
+  memset(packetFileName, 0, STORAGE_MAX_FILENAME_LENGTH);
 
   char oldestTs[15]; // should be 12 digits yymmddhhmmss, plus the 't' , plus terminator
   char currentTs[15]; // should be 12 digits yymmddhhmmss, plus the 't' , plus terminator
@@ -599,8 +599,8 @@ bool SDPacketStore::readNextBridgeOutPacketDetails (ChatterPacketMetaData* packe
 }
 
 bool SDPacketStore::moveMessageToAirOut (const char* sender, const char* messageId) {
-  char src[MAX_FILENAME_SIZE];
-  char dest[MAX_FILENAME_SIZE];
+  char src[STORAGE_MAX_FILENAME_LENGTH];
+  char dest[STORAGE_MAX_FILENAME_LENGTH];
   sprintf(src, "%s%s/%s", messageDir, sender, messageId);
   sprintf(dest, "%s%s/%s", airOutDir, sender, messageId);
   if(copyDirectory(src, dest)) {
@@ -618,8 +618,8 @@ bool SDPacketStore::moveMessageToAirOut (const char* sender, const char* message
 }
 
 bool SDPacketStore::moveMessageToBridgeOut (const char* sender, const char* messageId) {
-  char src[MAX_FILENAME_SIZE];
-  char dest[MAX_FILENAME_SIZE];
+  char src[STORAGE_MAX_FILENAME_LENGTH];
+  char dest[STORAGE_MAX_FILENAME_LENGTH];
   sprintf(src, "%s%s/%s", messageDir, sender, messageId);
   sprintf(dest, "%s%s/%s", bridgeOutDir, sender, messageId);
   if(copyDirectory(src, dest)) {
