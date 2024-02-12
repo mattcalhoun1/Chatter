@@ -16,19 +16,23 @@ bool ChatterAdmin::handleAdminRequest () {
 
             // check if this device id is known
             char knownDeviceId[CHATTER_DEVICE_ID_SIZE+1];
+            char knownAlias[CHATTER_ALIAS_NAME_SIZE+1];
             bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
             if(trustedKey) {
+                chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
                 Serial.print("We Know: ");
-                Serial.println(knownDeviceId);
+                Serial.print(knownDeviceId);
+                Serial.print("/");
+                Serial.print(knownAlias);
 
                 // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
                 // if it's sync, we are good to proceed
-                return syncDevice();
+                return syncDevice(knownDeviceId, knownAlias);
             } 
             else {
                 // we don't know this key, which is to be expected if it's on onboard
                 if (requestType == AdminRequestOnboard) {
-                    return onboardNewDevice(deviceType);
+                    return onboardNewDevice(deviceType, (const char*)chatter->getEncryptor()->getPublicKeyBuffer());
                 }
             }
         }
@@ -251,14 +255,16 @@ bool ChatterAdmin::genesis () {
     // clear out existing truststore, and add self with new id
     chatter->getTrustStore()->clearTruststore();
     encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
-    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getPublicKeyBuffer(), true);
+    encryptor->hexify(encryptor->getPublicKeyBuffer(), ENC_PUB_KEY_SIZE);
+    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getHexBuffer(), true);
 
     Serial.println("Genesis Complete! Ready to onboard devices.");
 
     return true;
 }
 
-bool ChatterAdmin::syncDevice () {
+bool ChatterAdmin::syncDevice (const char* deviceId, const char* alias) {
+    dumpDevice(deviceId, alias);
     dumpTruststore();
     dumpSymmetricKey();
     dumpWiFi();
@@ -316,7 +322,15 @@ bool ChatterAdmin::dumpTime () {
     Serial.println("=== END TIME ===");
 }
 
-bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType) {
+bool ChatterAdmin::dumpDevice (const char* deviceId, const char* alias) {
+    Serial.println("=== DEVICE ===");
+    Serial.println(deviceId);
+    Serial.println(alias);
+    Serial.println("=== END DEVICE ===");
+}
+
+
+bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey) {
     Serial.print("We will onboard this device");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
@@ -352,6 +366,10 @@ bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType) {
 
     Serial.println("This will be: " + String(newAddress));
     Serial.println("Alias: " + String(alias));
+
+    if(chatter->getTrustStore()->addTrustedDevice(newAddress, alias, devicePublicKey, true)) {
+        syncDevice (newAddress, alias);
+    }
 
 
 }

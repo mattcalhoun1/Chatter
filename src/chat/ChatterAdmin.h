@@ -25,13 +25,14 @@ class ChatterAdmin {
 
     private:
         bool genesis ();
-        bool syncDevice ();
-        bool onboardNewDevice (ChatterDeviceType deviceType); 
+        bool syncDevice (const char* deviceId, const char* alias);
+        bool onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey); 
 
         bool dumpTruststore (); // writes to serial
         bool dumpSymmetricKey();
         bool dumpTime ();
         bool dumpWiFi ();
+        bool dumpDevice (const char* deviceId, const char* alias);
         AdminRequestType extractRequestType (const char* request);
         ChatterDeviceType extractDeviceType (const char* request);
 

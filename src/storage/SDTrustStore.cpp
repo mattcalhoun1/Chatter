@@ -153,8 +153,6 @@ bool SDTrustStore::clearTruststore () {
 
 bool SDTrustStore::loadPublicKey(const char* deviceId, char* keyBuffer) {
   if (isSafeFilename(deviceId) && strlen(deviceId) == STORAGE_DEVICE_ID_LENGTH) {
-    logConsole("Reading public key for: " + String(deviceId));
-
     // If the device already exists on the sd card, delete it
     populateFullFileName(deviceId);
 

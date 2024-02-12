@@ -23,7 +23,7 @@
 #define ENC_VOLATILE_KEY_SIZE 32
 #define ENC_DATA_SLOT_SIZE 32
 #define ENC_DATA_SLOT_BUFFER_SIZE 33 // is the driver overrunnign our buffer when we load slot 10?
-#define ENC_HEX_BUFFER_SIZE 65
+#define ENC_HEX_BUFFER_SIZE 129
 #define ENC_MSG_BUFFER_SIZE 32 // only 32 byte messages are allowed for sig
 #define ENC_SIG_BUFFER_SIZE 64
 #define ENC_PUB_KEY_SIZE 128
@@ -82,6 +82,9 @@ class Encryptor {
 
     bool generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire);
 
+    void hexify (const byte input[], int inputLength);
+    const char* getHexBuffer ();
+
   protected:
     bool lockEncryptionDevice ();
 
@@ -94,8 +97,6 @@ class Encryptor {
     void generateNextVolatileKey ();
 
     /* Hex related. generally for dealing with aes key / atecc608 data slots */
-    void hexify (const byte input[], int inputLength);
-    const char* getHexBuffer ();
     void hexCharacterStringToBytes(byte *byteArray, const char *hexString);
     void hexCharacterStringToBytes(byte *byteArray, const char *hexString, int hexLength);
     byte nibble(char c);
