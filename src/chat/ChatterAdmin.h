@@ -21,13 +21,13 @@ enum AdminRequestType {
 class ChatterAdmin {
     public:
         ChatterAdmin (Chatter* _chatter) {chatter = _chatter;}
-
-        bool genesis ();
-        bool syncDevice ();
-        bool onboardNewDevice (); 
         bool handleAdminRequest ();
 
     private:
+        bool genesis ();
+        bool syncDevice ();
+        bool onboardNewDevice (ChatterDeviceType deviceType); 
+
         bool dumpTruststore (); // writes to serial
         bool dumpSymmetricKey();
         bool dumpTime ();
@@ -36,6 +36,7 @@ class ChatterAdmin {
         ChatterDeviceType extractDeviceType (const char* request);
 
         bool ingestPublicKey (byte* buffer);
+        bool getUserInput (const char* prompt, char* inputBuffer, int minLength, int maxLength, bool symbolsAllowed, bool lowerCaseAllowed);
 
         Chatter* chatter;
 };

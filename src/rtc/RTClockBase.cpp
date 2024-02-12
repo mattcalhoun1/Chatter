@@ -26,6 +26,14 @@ const char* RTClockBase::getViewableTime () {
     return viewableTimeBuffer;
 }
 
+int RTClockBase::extractInt (const char* digits, int numDigits) {
+  int val;
+  for (int i = 0; i < numDigits; i++) {
+    val += (digits[i] - 48) * pow(10, (numDigits-1) - i);
+  }
+  return val;
+}
+
 const char* RTClockBase::getSortableTimePlusSeconds (int seconds) {
   readLatestTime();
   int month = getMonth();

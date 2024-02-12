@@ -19,9 +19,10 @@ class SDTrustStore : public TrustStore {
         bool removeTrustedDevice (const char* deviceId);
         bool clearTruststore ();
         bool findDeviceId (const char* key, char* deviceIdBuffer);
+        bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer);
 
     private:
-        bool writeLineToFile (File* file, const char* content);
+        bool writeLineToFile (File* file, const char* content, int maxBytes);
         const char* publicKeysDir = "/trst/";
 
         char fullFileName[STORAGE_MAX_TRUSTSTORE_FILENAME_LENGTH];

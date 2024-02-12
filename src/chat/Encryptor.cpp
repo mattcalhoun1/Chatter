@@ -14,7 +14,9 @@ bool Encryptor::init() {
   syncKeys();
 
   if(loadDataSlot(DEVICE_ID_SLOT)) {
+    memset(deviceId, 0, ENC_DATA_SLOT_SIZE+1);
     getTextSlotBuffer(deviceId);
+    deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
     logConsole("Device ID: " + String(deviceId));
   }
   else {
@@ -41,11 +43,9 @@ const char* Encryptor::getDeviceId() {
 }
 
 void Encryptor::syncKeys () {
-  // clear out existing trustStore
-  trustStore->clearTruststore();
-
   // insert setup code here if necessary
   // public keys:
+  /*
   const char* pk_00 = "252923C6847099562B67045A2BACF1FFEB05F784A2E7AF40E5A6B03C074DA1221344369E32EB15BFB96760585856E22A41238E81CC40B262B8C4384F608DB416";
   trustStore->addTrustedDevice("USCAL000", "Repeater", pk_00, true);
 
@@ -57,6 +57,7 @@ void Encryptor::syncKeys () {
 
   const char* pk_03 = "38A1FB9F68FA1CAFA563084CE9C3FB4AE96DA5D024E6A7D987D4206281EBE13CF6FA45ABECB399BA023DFBA9024F435D80DC7B7C162710FF7006A759F35BAF1D";
   trustStore->addTrustedDevice("USCAL201", "Base_1", pk_03);
+  */
 }
 
 long Encryptor::getRandom() {
@@ -246,6 +247,7 @@ bool Encryptor::loadDataSlot(int slot) {
     return true;
   }
 
+  memset(dataSlotBuffer, 0, ENC_DATA_SLOT_SIZE);
   int result = ECCX08.readSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE);
 
   if (result == 1) {

@@ -11,29 +11,33 @@ bool ChatterAdmin::handleAdminRequest () {
     if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
         // pub key is required
         if (ingestPublicKey(chatter->getEncryptor()->getPublicKeyBuffer())) {
-            Serial.println("Public key ingested");
+
+            // future enhancement: this would be a good point to generate a message to challenge for a signature. 
 
             // check if this device id is known
             char knownDeviceId[CHATTER_DEVICE_ID_SIZE+1];
-            if(chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId)) {
+            bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
+            if(trustedKey) {
                 Serial.print("We Know: ");
                 Serial.println(knownDeviceId);
+
+                // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
+                // if it's sync, we are good to proceed
+                return syncDevice();
             } 
             else {
-                Serial.print("We dont know that key");
+                // we don't know this key, which is to be expected if it's on onboard
+                if (requestType == AdminRequestOnboard) {
+                    return onboardNewDevice(deviceType);
+                }
             }
-
-            // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
-
-            // if it's sync, it should exist in our truststore
-
-            // make sure it exists in our truststore if its a sync request
-
-            // should we check a sig?
         }
         else {
             Serial.println("Bad public key!");
         }
+    }
+    else if (requestType == AdminRequestGenesis && deviceType == ChatterDeviceRaw) {
+        return genesis();
     }
 
     return true;
@@ -107,23 +111,84 @@ ChatterDeviceType ChatterAdmin::extractDeviceType(const char* request) {
     return ChatterDeviceUnknown;
 }
 
+bool ChatterAdmin::getUserInput (const char* prompt, char* inputBuffer, int minLength, int maxLength, bool symbolsAllowed, bool lowerCaseAllowed) {
+    Serial.print(prompt);
+
+    while (Serial.available() < minLength + 1) {
+        delay(10);
+    }
+    char input[maxLength+1];
+    memset(input, 0, maxLength + 1);
+    Serial.readBytesUntil('\n', input, maxLength);
+
+    //const char* input = Serial.readStringUntil('\n').c_str();
+    int inCount = 0;
+    int goodCount = 0;
+
+    Serial.println(input);
+
+    while (goodCount < maxLength && inCount < strlen(input)) {
+        if (input[inCount] == '\r' || input[inCount] == '\n' || input[inCount] == '\0') {
+            //skip this
+            inCount++;
+        }
+        else {
+            // if no symbols allowed, make sure this is not a symbols
+            if (input[inCount] == '@' || input[inCount] == '.' || input[inCount] == '$' || input[inCount] == '!') {
+                if (symbolsAllowed) {
+                    // this is ok
+                    inputBuffer[goodCount++] = input[inCount++];
+                }
+                else {
+                    Serial.println("Invalid character: " + String(input[inCount]));
+                    return false;
+                }
+            }
+            else if ((input[inCount] >= '0' && input[inCount] <= '9') || (input[inCount] >= 'A' && input[inCount] <= 'Z')) {
+                // this is definitely ok
+                inputBuffer[goodCount++] = input[inCount++];
+            }
+            else if (input[inCount] >= 'a' && input[inCount] <= 'z') {
+                if (lowerCaseAllowed) {
+                    inputBuffer[goodCount++] = input[inCount++];
+                }
+                else {
+                    Serial.println("Invalid lower input: " + String(input[inCount]));
+                    return false;
+                }
+            }
+            else {
+                Serial.println("Invalid input: " + String(input[inCount]));
+                return false;
+            }
+        }
+    }
+    return goodCount >= minLength;
+}
+
+
 bool ChatterAdmin::genesis () {
+    char newNetworkId[9];
+    while (!getUserInput ("New Network ID, 5 upper-case letters (Ex: USCAL):", newNetworkId, 5, 5, false, false) ) {
+        delay(10);
+    }
+
     // global network id = US for now
     // Generate a random local network id, ascii 65-90 inclusive
-    char newNetworkId[9];
-    newNetworkId[0] = 'U';
-    newNetworkId[1] = 'S';
-
-    Encryptor* encryptor = chatter->getEncryptor();
-    for (int i = 0; i < 3; i++) {
-        int nextDigit = (encryptor->getRandom() % 26) + 65;
-        newNetworkId[i+2] = (char)nextDigit;
-    }
-    
 
     // device id is network info + 000 for this genesis device
     memset(newNetworkId+5, '0', 3);
     newNetworkId[8] = '\0';
+
+    // save it all in the atecc
+    Serial.print("New device ID: ");
+    Serial.print(newNetworkId);
+    Serial.println("");
+
+    // device id setup
+    Encryptor* encryptor = chatter->getEncryptor();
+    encryptor->setTextSlotBuffer(newNetworkId);
+    encryptor->saveDataSlot(DEVICE_ID_SLOT);
 
     // generate a new key
     // 0 - 9, A - F
@@ -143,27 +208,52 @@ bool ChatterAdmin::genesis () {
         }
     }
 
-    // save it all in the atecc
-    Serial.print("New device ID: ");
-    Serial.print(newNetworkId);
-    Serial.println("");
     Serial.print("New key: ");
     Serial.print(newKey);
     Serial.println("");
 
+    // update the symmetric key
+    encryptor->setDataSlotBuffer(newKey);
+    if (encryptor->saveDataSlot(ENCRYPTION_KEY_SLOT)) {
+        Serial.println("Symmetric Key Updated");
+    }
 
-    // later, get this id/pw from user, not hardcoded like this
-    const char* wifiStuff = "chatter.wifi|m@ttc@lhoun$";
-    encryptor->setTextSlotBuffer(wifiStuff);
+    char ssid[WIFI_SSID_MAX_LEN];
+    char pw[WIFI_PASSWORD_MAX_LEN];
+    memset(ssid, 0, WIFI_SSID_MAX_LEN);
+    memset(pw, 0, WIFI_PASSWORD_MAX_LEN);
+
+    while (!getUserInput ("WiFi Network SSID:", ssid, 5, WIFI_SSID_MAX_LEN - 1, true, true) ) {
+        delay(10);
+    }
+
+    while (!getUserInput ("WiFi Network Password:", pw, 5, WIFI_PASSWORD_MAX_LEN - 1, true, true) ) {
+        delay(10);
+    }
+    
+    String newWifiCreds = String(ssid) + String(ENCRYPTION_CRED_DELIMITER) + String(pw);
+    encryptor->setTextSlotBuffer(newWifiCreds.c_str());
     if(encryptor->saveDataSlot(WIFI_SSID_SLOT)) {
-        Serial.println("WiFi Config Saved");
+        Serial.println("WiFi Config Saved: " + newWifiCreds);
     }
     else {
         Serial.println("WiFi Config Failed!");
     }
 
-    // clear out existing truststore
+    char newDate[13]; //yymmddhhmmss
+    while (!getUserInput ("Time (yymmddhhmmss, ex: 241231135959):", newDate, 12, 12, false, false) ) {
+        delay(10);
+    }
+    chatter->getRtc()->setNewDateTime(newDate);
+    
+    Serial.println("New Date: " + String(chatter->getRtc()->getSortableTime()));
 
+    // clear out existing truststore, and add self with new id
+    chatter->getTrustStore()->clearTruststore();
+    encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
+    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getPublicKeyBuffer(), true);
+
+    Serial.println("Genesis Complete! Ready to onboard devices.");
 
     return true;
 }
@@ -180,7 +270,7 @@ bool ChatterAdmin::dumpTruststore () {
     Encryptor* encryptor = chatter->getEncryptor();
 
     List<String> others = trustStore->getDeviceIds();
-    char otherDeviceAlias[12];
+    char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
     Serial.println("=== BEGIN TRUSTSTORE ===");
     for (int i = 0; i < others.getSize(); i++) {
         const String& otherDeviceStr = others[i];
@@ -226,10 +316,42 @@ bool ChatterAdmin::dumpTime () {
     Serial.println("=== END TIME ===");
 }
 
-bool ChatterAdmin::onboardNewDevice () {
-    // ask device what it is
+bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType) {
+    Serial.print("We will onboard this device");
 
-    // bridge gets one flow, other gets another
+    char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
+    memcpy(newAddress, chatter->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
+    newAddress[CHATTER_DEVICE_ID_SIZE] = '\0';
+    char alias[CHATTER_ALIAS_NAME_SIZE + 1];
+    memset(alias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
 
-    return true;
+    switch (deviceType) {
+        case ChatterDeviceBridgeWifi:
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_WIFI_ADDRESS, 3);
+            memcpy(alias, BASE_WIFI_ADDRESS, strlen(BASE_WIFI_ADDRESS));
+            break;
+        case ChatterDeviceBridgeCloud:
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_CLOUD_ADDRESS, 3);
+            memcpy(alias, BASE_CLOUD_ALIAS, strlen(BASE_CLOUD_ALIAS));
+            break;
+        case ChatterDeviceCommunicator:
+            // find the next available communicator address
+            if (chatter->getTrustStore()->findNextAvailableDeviceId (newAddress, STARTING_DEVICE_ADDRESS, newAddress+(CHATTER_DEVICE_ID_SIZE - 3))) {
+                memcpy(alias, "Com_", 4);
+                memcpy(alias+4, newAddress+(CHATTER_DEVICE_ID_SIZE - 3), 3);
+            }
+            else {
+                Serial.println("Network is full.");
+                return false;
+            }
+            break;
+        default:
+            Serial.println("ERROR! Onboarding not supported for this device.");
+            return false;
+    }
+
+    Serial.println("This will be: " + String(newAddress));
+    Serial.println("Alias: " + String(alias));
+
+
 }

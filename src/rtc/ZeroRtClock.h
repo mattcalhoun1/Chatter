@@ -23,6 +23,8 @@ class ZeroRtClock : public RTClockBase {
         int getHour();
 
         bool readLatestTime ();
+        bool setNewDateTime (const char* yymmddHHMMSS);
+
     protected:
         void updateTimeBuffer();
 

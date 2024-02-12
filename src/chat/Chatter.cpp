@@ -22,7 +22,7 @@ bool Chatter::init () {
 
             encryptor->loadDataSlot(WIFI_SSID_SLOT);
             encryptor->getTextSlotBuffer(ssid);
-            //logConsole ("SSID stuff: " +String(ssid));
+            logConsole ("SSID stuff: " +String(ssid));
 
             // initialize statuses to no device
             for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
@@ -32,7 +32,7 @@ bool Chatter::init () {
 
             logConsole("Known Devices: ");
             List<String> others = trustStore->getDeviceIds();
-            char otherDeviceAlias[12];
+            char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
             for (int i = 0; i < others.getSize(); i++) {
                 const String& otherDeviceStr = others[i];
                 // try loading public key for that

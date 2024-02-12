@@ -17,6 +17,7 @@ class TrustStore : public StorageBase {
         virtual bool removeTrustedDevice (const char* deviceId) = 0;
         virtual bool clearTruststore () = 0;
         virtual bool findDeviceId (const char* key, char* deviceIdBuffer) = 0;
+        virtual bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) = 0;
 };
 
 #endif

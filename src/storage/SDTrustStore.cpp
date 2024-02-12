@@ -81,6 +81,34 @@ bool SDTrustStore::findDeviceId (const char* key, char* deviceIdBuffer) {
   return found;
 }
 
+// find lowest numeric gap in truststore so a new device can be onboarded
+bool SDTrustStore::findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) {
+  if (isSafeFilename(networkPrefix)) {
+    logConsole("Finding next available device id for network: " + String(networkPrefix));
+
+    memset(fullFileName, 0, STORAGE_MAX_TRUSTSTORE_FILENAME_LENGTH);
+    memcpy(fullFileName, publicKeysDir, strlen(publicKeysDir));
+    memcpy(fullFileName + strlen(publicKeysDir), networkPrefix, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+
+    // position of the 3 digit unique number for this device
+    int deviceIdPosition = strlen(publicKeysDir) + STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE;
+
+    // devices 10 to 249 should be available
+    for (int i = startingAddress; i < 250; i++) {
+      sprintf(fullFileName + deviceIdPosition, "%03d", i);
+      if (!SD.exists(fullFileName)) {
+        memcpy(deviceIdBuffer, fullFileName + deviceIdPosition, 3);
+        return true;
+      }
+    }
+  }
+  else {
+    logConsole("Unsafe network prefix");
+  }
+  return false;
+}
+
+
 bool SDTrustStore::removeTrustedDevice (const char* deviceId) {
   if (isSafeFilename(deviceId) && strlen(deviceId) == STORAGE_DEVICE_ID_LENGTH) {
     logConsole("Removing public key for: " + String(deviceId));
@@ -206,8 +234,8 @@ bool SDTrustStore::addTrustedDevice (const char* deviceId, const char* alias, co
     // line 1 is public key
     // line 2 is alias
     File deviceFile = SD.open(fullFileName, FILE_WRITE);
-    writeLineToFile(&deviceFile, publicKey);
-    writeLineToFile(&deviceFile, alias);
+    writeLineToFile(&deviceFile, publicKey, STORAGE_PUBLIC_KEY_LENGTH);
+    writeLineToFile(&deviceFile, alias, STORAGE_MAX_ALIAS_LENGTH);
     deviceFile.close();
   }
   else {
@@ -215,8 +243,8 @@ bool SDTrustStore::addTrustedDevice (const char* deviceId, const char* alias, co
   }
 }
 
-bool SDTrustStore::writeLineToFile (File* file, const char* content) {
-    for (int charCount = 0; charCount < strlen(content); charCount++) {
+bool SDTrustStore::writeLineToFile (File* file, const char* content, int maxBytes) {
+    for (int charCount = 0; charCount < strlen(content) && charCount < maxBytes; charCount++) {
       file->write((uint8_t)content[charCount]);
     }
     file->write((uint8_t)'\n');

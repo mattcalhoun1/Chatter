@@ -14,6 +14,7 @@ class DummyTrustStore : public TrustStore {
         bool removeTrustedDevice (const char* deviceId) {return true; }
         bool clearTruststore () { return true; }
         bool findDeviceId (const char* key, char* deviceIdBuffer) {return false;}
+        bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) {return false;}
 };
 
 #endif

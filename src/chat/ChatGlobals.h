@@ -6,8 +6,15 @@
 #define AIRLIFT_ONBOARD true
 
 #define BASE_LORA_ADDRESS "000" // all networks must have a base lora device, which is the master
+#define BASE_LORA_ALIAS "Base_Lora"
 #define BASE_WIFI_ADDRESS "001"
+#define BASE_WIFI_ALIAS "Base_Wifi"
 #define BASE_CLOUD_ADDRESS "002"
+#define BASE_CLOUD_ALIAS "Base_Cloud"
+
+#define STARTING_DEVICE_ADDRESS 10 // first com device will get this address
+
+#define CHATTER_ALIAS_NAME_SIZE 12
 
 #define DEVICE_TYPE_BRIDGE_LORA "BL"
 #define DEVICE_TYPE_BRIDGE_WIFI "BW"

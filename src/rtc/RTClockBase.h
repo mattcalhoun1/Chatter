@@ -23,7 +23,10 @@ class RTClockBase {
 
         virtual bool syncWithExternalRtc () = 0;
 
+        virtual bool setNewDateTime (const char* yymmddHHMMSS) = 0;
+
     protected:
+        int extractInt (const char* digits, int numDigits);
         const char* sortableTimeFormat = "%02d%02d%02d%02d%02d%02d"; // YYMMDDhhmmss
         const char* viewableTimeFormat = "%02d/%02d/%02d %02d:%02d:%02d"; // MM/DD/YYYY hh:mm:ss
 

@@ -16,6 +16,7 @@ class R4RtClock : public RTClockBase {
         R4RtClock();
         bool isFunctioning ();
         bool syncWithExternalRtc ();
+        bool setNewDateTime (const char* yymmddHHMMSS);
         
     protected:
         bool readLatestTime ();

@@ -28,6 +28,27 @@ bool R4RtClock::syncWithExternalRtc () {
   return RTC.isRunning();
 }
 
+bool R4RtClock::setNewDateTime (const char* yymmddHHMMSS) {
+  int year = extractInt(yymmddHHMMSS, 2);
+  int month = extractInt(yymmddHHMMSS + 2, 2);
+  int day = extractInt(yymmddHHMMSS + 4, 2);
+  int hour = extractInt(yymmddHHMMSS + 6, 2);
+  int minute = extractInt(yymmddHHMMSS + 8, 2);
+  int second = extractInt(yymmddHHMMSS + 10, 2);
+
+  DS3231 myRTC;
+  myRTC.setClockMode(false);  // set to 24h
+  myRTC.setYear(year);
+  myRTC.setMonth(month);
+  myRTC.setDate(day);
+  myRTC.setDoW('w'); // do we really need this
+  myRTC.setHour(hour);
+  myRTC.setMinute(minute);
+  myRTC.setSecond(second);
+
+  return syncWithExternalRtc();
+}
+
 bool R4RtClock::isFunctioning () {
   //int year = RTC.getYear();
   //return year > 10 && year < 99;// must be > 2010  and < 2099
