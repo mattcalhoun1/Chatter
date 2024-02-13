@@ -22,9 +22,9 @@ class ChatterAdmin {
     public:
         ChatterAdmin (Chatter* _chatter) {chatter = _chatter;}
         bool handleAdminRequest ();
+        bool genesis ();
 
     private:
-        bool genesis ();
         bool syncDevice (const char* deviceId, const char* alias);
         bool onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey); 
 

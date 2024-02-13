@@ -66,8 +66,9 @@
 #define CHATTER_HEADER_SIZE 55 // HHH[nbf][na][recipient][flags*6][rand*14] = 3 + 24 + 8 + 6 + 14, nbf date format: 241231235959
 #define CHATTER_HEADER_BUFFER_SIZE 56 // HHH[nbf][na][recipient][flags*6][rand*14] = 24 + 8 + 6 + 14 + term, nbf date format: 241231235959
 
-#define CHATTER_EXPIRY_NBF_SECONDS -60 // 1 min clock diff before
+#define CHATTER_EXPIRY_NBF_SECONDS -300 // 5 min clock diff before (for drift)
 #define CHATTER_EXPIRY_NAF_SECONDS 600 // 10 min clock diff after
+#define CHATTER_EXPIRY_NAF_SECONDS_LONG 5400 // 1.5 hour
 #define CHATTER_EXPIRY_DATE_LENGTH 12
 
 #define CHATTER_BROADCAST_ID "255"

@@ -41,7 +41,8 @@ bool ChatterAdmin::handleAdminRequest () {
         }
     }
     else if (requestType == AdminRequestGenesis && deviceType == ChatterDeviceRaw) {
-        return genesis();
+        // this needs to be done by shorting pin A0
+        return false;
     }
 
     return true;
@@ -172,13 +173,11 @@ bool ChatterAdmin::getUserInput (const char* prompt, char* inputBuffer, int minL
 
 
 bool ChatterAdmin::genesis () {
+    Serial.println("Creating a new cluster. Proceed with caution.");
     char newNetworkId[9];
-    while (!getUserInput ("New Network ID, 5 upper-case letters (Ex: USCAL):", newNetworkId, 5, 5, false, false) ) {
+    while (!getUserInput ("New Cluster ID, 5 upper-case letters (Ex: USCAL):", newNetworkId, 5, 5, false, false) ) {
         delay(10);
     }
-
-    // global network id = US for now
-    // Generate a random local network id, ascii 65-90 inclusive
 
     // device id is network info + 000 for this genesis device
     memset(newNetworkId+5, '0', 3);
@@ -373,7 +372,7 @@ bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* d
                 memcpy(alias+4, newAddress+(CHATTER_DEVICE_ID_SIZE - 3), 3);
             }
             else {
-                Serial.println("Network is full.");
+                Serial.println("Cluster is full.");
                 return false;
             }
             break;
