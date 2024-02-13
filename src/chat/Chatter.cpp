@@ -20,9 +20,20 @@ bool Chatter::init () {
             // preload encryption key
             encryptor->loadEncryptionKey(ENCRYPTION_KEY_SLOT);
 
+            // wifi ssid/pw occupies its own slot
             encryptor->loadDataSlot(WIFI_SSID_SLOT);
             encryptor->getTextSlotBuffer(ssid);
-            logConsole ("SSID stuff: " +String(ssid));
+
+            // use the sender public key buffer for this, since there's no sending going on yet
+            encryptor->loadDataSlot(LORA_FREQUENCY_SLOT);
+            encryptor->getTextSlotBuffer(senderPublicKey);
+            char* frequencyEnd = senderPublicKey+5;
+            loraFrequency = strtof(senderPublicKey, &frequencyEnd);
+            if (loraFrequency < 868.0 || loraFrequency > 960.0) {
+                logConsole("Lora frequency out of range, using default");
+                loraFrequency = LORA_DEFAULT_FREQUENCY;
+            }
+            logConsole("Lora frequency: " + String(loraFrequency));
 
             // initialize statuses to no device
             for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
@@ -174,9 +185,9 @@ void Chatter::updateChatStatus (uint8_t channelNum, ChatStatus newStatus) {
     statusCallback->updateChatStatus(channelNum, newStatus);
 }
 
-void Chatter::addLoRaChannel (float frequency, int csPin, int intPin, int rsPin, bool logEnabled) {
+void Chatter::addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled) {
     uint8_t loraAddr = getSelfAddress();
-    LoRaChannel* loraChannel = new LoRaChannel(numChannels, frequency, loraAddr, csPin, intPin, rsPin, logEnabled, this);
+    LoRaChannel* loraChannel = new LoRaChannel(numChannels, loraFrequency, loraAddr, csPin, intPin, rsPin, logEnabled, this);
     channels[numChannels++] = loraChannel;
 
     if(loraChannel->init())

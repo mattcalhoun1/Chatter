@@ -14,6 +14,8 @@
 
 #define STARTING_DEVICE_ADDRESS 10 // first com device will get this address
 
+#define LORA_DEFAULT_FREQUENCY 915.0
+
 #define CHATTER_ALIAS_NAME_SIZE 12
 
 #define DEVICE_TYPE_BRIDGE_LORA "BL"
@@ -71,6 +73,7 @@
 #define CHATTER_BROADCAST_ID "255"
 
 #define WIFI_SSID_SLOT 14
+#define LORA_FREQUENCY_SLOT 13
 #define DEVICE_ID_SLOT 9 // unique alphanumeric ID of the device. Optionally add extra config since we have 72 bytes here
 
 #endif

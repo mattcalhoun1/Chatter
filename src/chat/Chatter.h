@@ -39,7 +39,7 @@ class Chatter : ChatStatusCallback {
     Chatter(ChatterMode _mode, PacketStore* _packetStore, TrustStore* _trustStore, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {mode = _mode, packetStore = _packetStore; trustStore =_trustStore; rtc = _rtc, statusCallback = _statusCallback; }
     bool init ();
 
-    void addLoRaChannel (float frequency, int csPin, int intPin, int rsPin, bool logEnabled);
+    void addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled);
     void addAirliftUdpChannel (int ssPin, int ackPin, int resetPin, int gpi0, bool logEnabled);
     void addOnboardUdpChannel (bool logEnabled);
     void addUartChannel (bool logEnabled);
@@ -132,7 +132,8 @@ class Chatter : ChatStatusCallback {
     RTClockBase* rtc;
 
     char deviceId[CHATTER_DEVICE_ID_SIZE+1];
-    char ssid[ENC_DATA_SLOT_BUFFER_SIZE];
+    char ssid[WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN + 2]; // +2 for delimiter and terminator
+    float loraFrequency;
 
     void logConsole(String msg);
     ChatStatusCallback* statusCallback;

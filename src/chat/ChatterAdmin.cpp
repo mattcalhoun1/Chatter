@@ -222,6 +222,24 @@ bool ChatterAdmin::genesis () {
         Serial.println("Symmetric Key Updated");
     }
 
+    char loraFrequency[6];
+    memset(loraFrequency, 0, 6);
+
+    char* loraFrequencyEnd = loraFrequency + 5;
+    while (strtof(loraFrequency, &loraFrequencyEnd) < 868.0 || strtof(loraFrequency, &loraFrequencyEnd) > 960.0) {
+        memset(loraFrequency, 0, 6);
+        while (!getUserInput ("LoRa Frequency, exactly 5 digits (ex: 915.0):", loraFrequency, 5, 5, true, true) ) {
+            delay(10);
+        }
+    }
+    encryptor->setTextSlotBuffer(loraFrequency);
+    if(encryptor->saveDataSlot(LORA_FREQUENCY_SLOT)) {
+        Serial.println("Lora Frequency Saved");
+    }
+    else {
+        Serial.println("Lora Frequency Failed!");
+    }
+
     char ssid[WIFI_SSID_MAX_LEN];
     char pw[WIFI_PASSWORD_MAX_LEN];
     memset(ssid, 0, WIFI_SSID_MAX_LEN);
@@ -331,7 +349,7 @@ bool ChatterAdmin::dumpDevice (const char* deviceId, const char* alias) {
 
 
 bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey) {
-    Serial.print("We will onboard this device");
+    Serial.println("We will onboard this device");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
     memcpy(newAddress, chatter->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
