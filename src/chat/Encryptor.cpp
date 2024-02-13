@@ -206,11 +206,12 @@ bool Encryptor::loadPublicKey(int slot) {
 
   int loadResult = ECCX08.generatePublicKey(slot, publicKeyBuffer);
   if (loadResult == 1) {
+    // This interferes with onboarding
     // print the public key
-    Serial.print("Public key of slot ");
+    /*Serial.print("Public key of slot ");
     Serial.print(slot);
     Serial.print(" is:   ");
-    logBufferHex(publicKeyBuffer, ENC_PUB_KEY_SIZE);
+    logBufferHex(publicKeyBuffer, ENC_PUB_KEY_SIZE);*/
     return true;
   }
   else {

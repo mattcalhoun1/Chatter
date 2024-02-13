@@ -12,12 +12,15 @@ bool ChaChaEncryptor::init () {
     loadEncryptionKey(ENCRYPTION_KEY_SLOT);
     chacha.setKey(encryptionKeyBuffer, ENC_SYMMETRIC_KEY_SIZE);
 
+    // preload the iv
+    loadEncryptionKey(ENCRYPTION_IV_SLOT);
+
     return result;
 }
 
 void ChaChaEncryptor::prepareForVolatileEncryption() {
   volatileChacha.clear();
-  volatileChacha.setIV(volatileEncryptionKey, volatileChacha.ivSize());
+  volatileChacha.setIV(encryptionKeyBuffer, volatileChacha.ivSize());
   memset(this->encryptedBuffer, 0, ENC_ENCRYPTED_BUFFER_SIZE);
   memset(this->unencryptedBuffer, 0, ENC_UNENCRYPTED_BUFFER_SIZE);
 }

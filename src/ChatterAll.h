@@ -3,7 +3,8 @@
 
 #include "chat/Chatter.h"
 #include "chat/ChatGlobals.h"
-#include "chat/ChatterAdmin.h"
+#include "chat/ClusterAdmin.h"
+#include "chat/ClusterAssistant.h"
 
 #include "chat/ChatStatusCallback.h"
 #include "storage/PacketStore.h"

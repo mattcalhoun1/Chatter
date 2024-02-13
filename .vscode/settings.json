@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "string_view": "cpp",
+        "__locale": "cpp",
+        "__string": "cpp",
+        "string": "cpp"
+    }
+}

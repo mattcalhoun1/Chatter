@@ -1,12 +1,12 @@
-#include "ChatterAdmin.h"
+#include "ClusterAdmin.h"
 
-bool ChatterAdmin::handleAdminRequest () {
+bool ClusterAdmin::handleAdminRequest () {
     const char* nextLine = Serial.readStringUntil('\n').c_str();
 
     AdminRequestType requestType = extractRequestType(nextLine);
     ChatterDeviceType deviceType = extractDeviceType(nextLine);
 
-    Serial.println("Admin request type: " + String(requestType) + " from device type: " + String(deviceType));
+    //Serial.println("Admin request type: " + String(requestType) + " from device type: " + String(deviceType));
 
     if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
         // pub key is required
@@ -20,10 +20,10 @@ bool ChatterAdmin::handleAdminRequest () {
             bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
             if(trustedKey) {
                 chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
-                Serial.print("We Know: ");
+                /*Serial.print("We Know: ");
                 Serial.print(knownDeviceId);
                 Serial.print("/");
-                Serial.print(knownAlias);
+                Serial.println(knownAlias);*/
 
                 // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
                 // if it's sync, we are good to proceed
@@ -48,53 +48,20 @@ bool ChatterAdmin::handleAdminRequest () {
     return true;
 }
 
-bool ChatterAdmin::ingestPublicKey (byte* buffer) {
-    int bytesRead = 0;
-    bool validKey = true; // assume valid until we find a bad byte
-    unsigned long startTime = millis();
-    unsigned long maxWait = 3000;//3 sec
-
-    // pub key can only be hex with no spaces
-    while ((millis() - startTime < maxWait) && bytesRead < ENC_PUB_KEY_SIZE && validKey) {
-        if (Serial.available()) {
-            // ignore carriage returns, as this may be preceeded by one
-            if (Serial.peek() == '\n' || Serial.peek() == CHATTER_ADMIN_DELIMITER || Serial.peek() == '\0' || Serial.peek() == '\r') {
-                Serial.read();
-            }
-            else {
-                buffer[bytesRead++] = (byte)Serial.read();
-
-                if ((buffer[bytesRead-1] >= '0' && buffer[bytesRead-1] <= '9') || (buffer[bytesRead-1] >= 'A' && buffer[bytesRead-1] <= 'F')) {
-                    // we have a valid key byte
-                }
-                else {
-                    validKey = false;
-                }
-            }
-        }
-    }
-
-    if (bytesRead == ENC_PUB_KEY_SIZE && validKey) {
-        return true;
-    }
-
-    return false;
-}
-
-AdminRequestType ChatterAdmin::extractRequestType (const char* request) {
-    if (memcmp(request, CHATTER_ADMIN_REQ_SYNC, 4) == 0) {
+AdminRequestType ClusterAdmin::extractRequestType (const char* request) {
+    if (memcmp(request, CLUSTER_REQ_SYNC, 4) == 0) {
         return AdminRequestSync;
     }
-    else if (memcmp(request, CHATTER_ADMIN_REQ_ONBOARD, 4) == 0) {
+    else if (memcmp(request, CLUSTER_REQ_ONBOARD, 4) == 0) {
         return AdminRequestOnboard;
     }
-    else if (memcmp(request, CHATTER_ADMIN_REQ_GENESIS, 4) == 0) {
+    else if (memcmp(request, CLUSTER_REQ_GENESIS, 4) == 0) {
         return AdminRequestGenesis;
     }
     return AdminRequestNone;
 }
 
-ChatterDeviceType ChatterAdmin::extractDeviceType(const char* request) {
+ChatterDeviceType ClusterAdmin::extractDeviceType(const char* request) {
     // the message needs to be at least 4 chars + delimiter + 2 (device type string)
     if (strlen(request) >= 7) {
         if (memcmp(request + 5, DEVICE_TYPE_BRIDGE_LORA, 2) == 0) {
@@ -116,63 +83,7 @@ ChatterDeviceType ChatterAdmin::extractDeviceType(const char* request) {
     return ChatterDeviceUnknown;
 }
 
-bool ChatterAdmin::getUserInput (const char* prompt, char* inputBuffer, int minLength, int maxLength, bool symbolsAllowed, bool lowerCaseAllowed) {
-    Serial.print(prompt);
-
-    while (Serial.available() < minLength + 1) {
-        delay(10);
-    }
-    char input[maxLength+1];
-    memset(input, 0, maxLength + 1);
-    Serial.readBytesUntil('\n', input, maxLength);
-
-    //const char* input = Serial.readStringUntil('\n').c_str();
-    int inCount = 0;
-    int goodCount = 0;
-
-    Serial.println(input);
-
-    while (goodCount < maxLength && inCount < strlen(input)) {
-        if (input[inCount] == '\r' || input[inCount] == '\n' || input[inCount] == '\0') {
-            //skip this
-            inCount++;
-        }
-        else {
-            // if no symbols allowed, make sure this is not a symbols
-            if (input[inCount] == '@' || input[inCount] == '.' || input[inCount] == '$' || input[inCount] == '!') {
-                if (symbolsAllowed) {
-                    // this is ok
-                    inputBuffer[goodCount++] = input[inCount++];
-                }
-                else {
-                    Serial.println("Invalid character: " + String(input[inCount]));
-                    return false;
-                }
-            }
-            else if ((input[inCount] >= '0' && input[inCount] <= '9') || (input[inCount] >= 'A' && input[inCount] <= 'Z')) {
-                // this is definitely ok
-                inputBuffer[goodCount++] = input[inCount++];
-            }
-            else if (input[inCount] >= 'a' && input[inCount] <= 'z') {
-                if (lowerCaseAllowed) {
-                    inputBuffer[goodCount++] = input[inCount++];
-                }
-                else {
-                    Serial.println("Invalid lower input: " + String(input[inCount]));
-                    return false;
-                }
-            }
-            else {
-                Serial.println("Invalid input: " + String(input[inCount]));
-                return false;
-            }
-        }
-    }
-    return goodCount >= minLength;
-}
-
-
-bool ChatterAdmin::genesis () {
+bool ClusterAdmin::genesis () {
     Serial.println("Creating a new cluster. Proceed with caution.");
     char newNetworkId[9];
     while (!getUserInput ("New Cluster ID, 5 upper-case letters (Ex: USCAL):", newNetworkId, 5, 5, false, false) ) {
@@ -199,26 +110,30 @@ bool ChatterAdmin::genesis () {
     // ascii A == 65
     char newKey[33];
     newKey[32] = '\0';
-    for (int i = 0; i < 32; i++) {
-        int nextDigit = (encryptor->getRandom() % 16);
-        if (nextDigit < 6) {
-            // char A-F
-            newKey[i] = (char)(nextDigit + 65);
+    // this loop assumes the key slot and iv slot are adjacent
+    for (int keySlot = ENCRYPTION_KEY_SLOT; keySlot <= ENCRYPTION_IV_SLOT; keySlot++) {
+        for (int i = 0; i < 32; i++) {
+            int nextDigit = (encryptor->getRandom() % 16);
+            if (nextDigit < 6) {
+                // char A-F
+                newKey[i] = (char)(nextDigit + 65);
+            }
+            else {
+                // number 0-9
+                newKey[i] = (char)(nextDigit - 6 + 48);
+            }
         }
-        else {
-            // number 0-9
-            newKey[i] = (char)(nextDigit - 6 + 48);
+
+        Serial.print("New key: ");
+        Serial.print(newKey);
+        Serial.println("");
+
+        // update the symmetric key
+        encryptor->setDataSlotBuffer(newKey);
+        if (encryptor->saveDataSlot(keySlot)) {
+            Serial.println("Symmetric Key Updated");
         }
-    }
 
-    Serial.print("New key: ");
-    Serial.print(newKey);
-    Serial.println("");
-
-    // update the symmetric key
-    encryptor->setDataSlotBuffer(newKey);
-    if (encryptor->saveDataSlot(ENCRYPTION_KEY_SLOT)) {
-        Serial.println("Symmetric Key Updated");
     }
 
     char loraFrequency[6];
@@ -280,21 +195,21 @@ bool ChatterAdmin::genesis () {
     return true;
 }
 
-bool ChatterAdmin::syncDevice (const char* deviceId, const char* alias) {
+bool ClusterAdmin::syncDevice (const char* deviceId, const char* alias) {
     dumpDevice(deviceId, alias);
     dumpTruststore();
     dumpSymmetricKey();
     dumpWiFi();
     dumpTime();
+    dumpFrequency();
 }
 
-bool ChatterAdmin::dumpTruststore () {
+bool ClusterAdmin::dumpTruststore () {
     TrustStore* trustStore = chatter->getTrustStore();
     Encryptor* encryptor = chatter->getEncryptor();
 
     List<String> others = trustStore->getDeviceIds();
     char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
-    Serial.println("=== BEGIN TRUSTSTORE ===");
     for (int i = 0; i < others.getSize(); i++) {
         const String& otherDeviceStr = others[i];
         // try loading public key for that
@@ -302,52 +217,72 @@ bool ChatterAdmin::dumpTruststore () {
         trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
         trustStore->loadPublicKey(otherDeviceId, (char*)encryptor->getPublicKeyBuffer());
 
-        Serial.println(otherDeviceId);
-        Serial.println((char*)encryptor->getPublicKeyBuffer());
-        Serial.println(otherDeviceAlias);
+        Serial.print(CLUSTER_CFG_TRUST);
+        Serial.print(CLUSTER_CFG_DELIMITER);
+        Serial.print(otherDeviceId);
+        Serial.print((char*)encryptor->getPublicKeyBuffer());
+        Serial.print(otherDeviceAlias);
+        Serial.println("");
     }
-    Serial.println("=== END TRUSTSTORE ===");
     return true;
 }
 
-bool ChatterAdmin::dumpSymmetricKey() {
-    Serial.println("=== KEY ===");
+bool ClusterAdmin::dumpSymmetricKey() {
+    Serial.print(CLUSTER_CFG_KEY);
+    Serial.print(CLUSTER_CFG_DELIMITER);
     Encryptor* encryptor = chatter->getEncryptor();
     if (encryptor->loadDataSlot(ENCRYPTION_KEY_SLOT)) {
         encryptor->logBufferHex(encryptor->getDataSlotBuffer(), ENC_DATA_SLOT_SIZE);
     }
     Serial.println("");
-    Serial.println("=== END KEY ===");
 
+    Serial.print(CLUSTER_CFG_IV);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    if (encryptor->loadDataSlot(ENCRYPTION_IV_SLOT)) {
+        encryptor->logBufferHex(encryptor->getDataSlotBuffer(), ENC_DATA_SLOT_SIZE);
+    }
+    Serial.println("");
 }
 
-bool ChatterAdmin::dumpWiFi () {
-    Serial.println("=== WIFI ===");
+bool ClusterAdmin::dumpWiFi () {
     Encryptor* encryptor = chatter->getEncryptor();
     encryptor->loadDataSlot(WIFI_SSID_SLOT);
     char ssid[32];
     encryptor->getTextSlotBuffer(ssid);
+    Serial.print(CLUSTER_CFG_WIFI);
+    Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(ssid);
     Serial.println("");
-    Serial.println("=== END WIFI ===");
 }
 
-bool ChatterAdmin::dumpTime () {
-    Serial.println("=== TIME ===");
+bool ClusterAdmin::dumpFrequency () {
+    Encryptor* encryptor = chatter->getEncryptor();
+    encryptor->loadDataSlot(LORA_FREQUENCY_SLOT);
+    char frequency[32];
+    encryptor->getTextSlotBuffer(frequency);
+    frequency[5] = '\0';
+    Serial.print(CLUSTER_CFG_FREQ);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.println(frequency);
+}
+
+bool ClusterAdmin::dumpTime () {
+    Serial.print(CLUSTER_CFG_TIME);
+    Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(chatter->getRtc()->getSortableTime());
     Serial.println("");
-    Serial.println("=== END TIME ===");
 }
 
-bool ChatterAdmin::dumpDevice (const char* deviceId, const char* alias) {
-    Serial.println("=== DEVICE ===");
-    Serial.println(deviceId);
-    Serial.println(alias);
-    Serial.println("=== END DEVICE ===");
+bool ClusterAdmin::dumpDevice (const char* deviceId, const char* alias) {
+    Serial.print(CLUSTER_CFG_DEVICE);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.print(deviceId);
+    Serial.print(alias);
+    Serial.println("");
 }
 
 
-bool ChatterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey) {
+bool ClusterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey) {
     Serial.println("We will onboard this device");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];

@@ -36,8 +36,9 @@ enum ChatterDeviceType {
 
 class Chatter : ChatStatusCallback {
   public:
-    Chatter(ChatterMode _mode, PacketStore* _packetStore, TrustStore* _trustStore, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {mode = _mode, packetStore = _packetStore; trustStore =_trustStore; rtc = _rtc, statusCallback = _statusCallback; }
+    Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, PacketStore* _packetStore, TrustStore* _trustStore, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, packetStore = _packetStore; trustStore =_trustStore; rtc = _rtc, statusCallback = _statusCallback; }
     bool init ();
+    ChatterDeviceType getDeviceType() { return deviceType; }
 
     void addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled);
     void addAirliftUdpChannel (int ssPin, int ackPin, int resetPin, int gpi0, bool logEnabled);
@@ -100,6 +101,7 @@ class Chatter : ChatStatusCallback {
     RTClockBase* getRtc() {return rtc;}
 
   private:
+    ChatterDeviceType deviceType;
     ChatterMode mode;
     bool running = false;
 
