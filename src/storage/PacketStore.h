@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "../chat/ChatterPacket.h"
-#include "../chat/Encryptor.h"
+#include "../encryption/Encryptor.h"
 #include "StorageGlobals.h"
 #include "StorageBase.h"
 

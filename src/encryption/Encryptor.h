@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoECCX08.h>
-#include "ChatGlobals.h"
+#include "../chat/ChatGlobals.h"
 #include <SHA256.h>
 #include "../storage/TrustStore.h"
 #include <utility/ECCX08SelfSignedCert.h>

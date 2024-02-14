@@ -16,5 +16,6 @@
 #include "rtc/R4RtClock.h"
 #include "rtc/RTClockBase.h"
 #include "rtc/ZeroRtClock.h"
+#include "rtc/DueRtClock.h"
 
 #endif

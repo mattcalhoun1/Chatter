@@ -4,6 +4,10 @@
 #include <RHReliableDatagram.h>
 #include <RH_RF95.h>
 
+#ifndef pin_size_t
+#define pin_size_t __uint8_t
+#endif
+
 #ifndef LORATRANS_H
 #define LORATRANS_H
 
