@@ -627,7 +627,7 @@ int Chatter::generateFooter (const char* recipientDeviceId, char* messageId, uin
 
     // Add sig
     encryptor->setMessageBuffer(hashBuffer);
-    encryptor->sign(CHATTER_SIGN_PK_SLOT);
+    encryptor->signMessage(CHATTER_SIGN_PK_SLOT);
     byte* sig = encryptor->getSignatureBuffer();
     for (int i = 0; i < CHATTER_SIGNATURE_LENGTH; i++) {
         footerBuffer[footerIndex++] = sig[i];

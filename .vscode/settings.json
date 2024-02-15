@@ -5,7 +5,9 @@
         "__string": "cpp",
         "string": "cpp",
         "ctime": "cpp",
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "*.tcc": "cpp",
+        "ostream": "cpp"
     },
     "editor.detectIndentation": false
 }

@@ -200,18 +200,7 @@ byte* Encryptor::getSignatureBuffer () {
   return signatureBuffer;
 }
 
-bool Encryptor::sign (int slot) {
-
-    logConsole("About to inovke hsm sign...");
-    delay(500);
-
-    if (hsm == nullptr) {
-        logConsole("Error, hsm is null!!");
-    delay(500);
-        return false;
-    }
-
-
+bool Encryptor::signMessage (int slot) {
   // Sign whatever is in the message buffer, storing signature in sig buffer
   return hsm->sign(slot, messageBuffer, signatureBuffer);
 }
@@ -371,7 +360,7 @@ void Encryptor::logBufferHex(const byte input[], int inputLength) {
 }
 
 void Encryptor::logConsole(String msg) {
-  if (CHAT_LOG_ENABLED) {
+  if (ENC_LOG_ENABLED) {
     Serial.println(msg);
   }
 }

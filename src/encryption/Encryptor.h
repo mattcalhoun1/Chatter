@@ -27,7 +27,7 @@ class Encryptor {
     bool verify();
     bool verify(int slot);
     bool verify(const byte pubkey[]);
-    bool sign(int slot);
+    bool signMessage(int slot);
 
     bool loadPublicKey (int slot);
     bool setPublicKeyBuffer (const char* publicKey);

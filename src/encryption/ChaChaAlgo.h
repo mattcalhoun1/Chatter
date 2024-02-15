@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "EncryptionAlgo.h"
+#include "EncryptionGlobals.h"
 #include <ChaCha.h>
 
 #ifndef CHACHAALGO_H
@@ -19,7 +20,8 @@ class ChaChaAlgo : public EncryptionAlgo {
     void prepareForVolatileEncryption (uint8_t* unencryptedBuffer, int unencryptedBufferSize, uint8_t* encryptedBuffer, int encryptedBufferSize);
 
   protected:
-    void generateNextVolatileKey();
+    void logConsole(const char* msg);
+    uint8_t iv[ENC_IV_SIZE];
 
     ChaCha chacha;
     ChaCha volatileChacha;

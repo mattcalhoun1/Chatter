@@ -8,6 +8,7 @@
 #define ENC_SSC_DATE 11
 #define ENC_SSC_VALID 30
 #define ENC_SSC_HOUR 1
+#define ENC_IV_SIZE 8
 
 #define ENC_ECC_DSA_KEY_SIZE 64
 #define ENC_SIGNATURE_SIZE 64
