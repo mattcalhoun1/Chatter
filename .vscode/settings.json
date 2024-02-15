@@ -4,6 +4,8 @@
         "__locale": "cpp",
         "__string": "cpp",
         "string": "cpp",
-        "ctime": "cpp"
-    }
+        "ctime": "cpp",
+        "cstddef": "cpp"
+    },
+    "editor.detectIndentation": false
 }

@@ -1,11 +1,11 @@
 #include <Arduino.h>
-#include <ArduinoECCX08.h>
 #include "../chat/ChatGlobals.h"
+#include "EncryptionGlobals.h"
 #include <SHA256.h>
 #include "../storage/TrustStore.h"
-#include <utility/ECCX08SelfSignedCert.h>
-#include <utility/ECCX08DefaultTLSConfig.h>
-
+#include "Hsm.h"
+#include "EncryptionAlgo.h"
+#include "ChaChaAlgo.h"
 
 /*
    Based on Atecc608
@@ -18,29 +18,16 @@
 #ifndef ENCRYPTOR_H
 #define ENCRYPTOR_H
 
-#define ENC_SYMMETRIC_KEY_SIZE 16
-#define ENC_SYMMETRIC_KEY_BUFFER_SIZE 33
-#define ENC_VOLATILE_KEY_SIZE 32
-#define ENC_DATA_SLOT_SIZE 32
-#define ENC_DATA_SLOT_BUFFER_SIZE 33 // is the driver overrunnign our buffer when we load slot 10?
-#define ENC_HEX_BUFFER_SIZE 129
-#define ENC_MSG_BUFFER_SIZE 32 // only 32 byte messages are allowed for sig
-#define ENC_SIG_BUFFER_SIZE 64
-#define ENC_PUB_KEY_SIZE 128
-
-#define ENC_UNENCRYPTED_BUFFER_SIZE 150 // really only need closer to 128, but extra since encryption/decryption can change size
-#define ENC_ENCRYPTED_BUFFER_SIZE 150
-
 class Encryptor {
   public:
-    Encryptor(TrustStore* _trustStore) {trustStore = _trustStore;}
-    virtual bool init ();
+    Encryptor(TrustStore* _trustStore, Hsm* _hsm) {trustStore = _trustStore, hsm = _hsm;}
+    bool init ();
     const char* getDeviceId(); // unique alphanumeric id of this device
     long getRandom();
     bool verify();
     bool verify(int slot);
     bool verify(const byte pubkey[]);
-    int sign(int slot);
+    bool sign(int slot);
 
     bool loadPublicKey (int slot);
     bool setPublicKeyBuffer (const char* publicKey);
@@ -65,10 +52,15 @@ class Encryptor {
 
     void logBufferHex(const byte input[], int inputLength);
 
-    virtual void encrypt(const char* plainText, int len, int slot) = 0;
-    virtual void decrypt(uint8_t* encrypted, int len, int slot) = 0;
-    virtual void encryptVolatile(const char* plainText, int len) = 0;
-    virtual void decryptVolatile(uint8_t* encrypted, int len) = 0;
+    // encrypt the value, place cleartext in encrypted buffer
+    void encrypt(const char* plainText, int len);
+    void encryptVolatile(const char* plainText, int len);
+
+    // decrypt the value, place cleartext in unencrypted buffer
+    void decrypt(uint8_t* encrypted, int len);
+    void decryptVolatile(uint8_t* encrypted, int len);
+
+    // buffers containing the result of encryption or decryption
     uint8_t* getEncryptedBuffer();
     uint8_t* getUnencryptedBuffer();
     int getEncryptedBufferLength();
@@ -77,45 +69,42 @@ class Encryptor {
 
     int generateHash(const char* plainText, int inputLength, uint8_t* hashBuffer);
 
-    // debugging - move back to private
-    void loadEncryptionKey (int slot);
-
-    bool generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire);
+    //bool generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire);
 
     void hexify (const byte input[], int inputLength);
     const char* getHexBuffer ();
 
   protected:
-    bool lockEncryptionDevice ();
-
+    Hsm* hsm;
+    EncryptionAlgo* algo;
+    TrustStore* trustStore;
     void logConsole(String msg);
     byte signatureBuffer[ENC_SIG_BUFFER_SIZE];
     byte messageBuffer[ENC_MSG_BUFFER_SIZE]; // can only sign exactly 32 bytes
     byte publicKeyBuffer[ENC_PUB_KEY_SIZE]; // holds public key for validating messagees
     byte dataSlotBuffer[ENC_DATA_SLOT_BUFFER_SIZE];
+    bool loadEncryptionKey (int slot);
     void syncKeys ();
-    void generateNextVolatileKey ();
+    void generateNextVolatileKey();
 
     /* Hex related. generally for dealing with aes key / atecc608 data slots */
-    void hexCharacterStringToBytes(byte *byteArray, const char *hexString);
-    void hexCharacterStringToBytes(byte *byteArray, const char *hexString, int hexLength);
+    void hexCharacterStringToBytes(byte *byteArray, const char *hexString, int maxBufferSize);
+    void hexCharacterStringToBytesMax(byte *byteArray, const char *hexString, int hexLength, int maxBufferSize);
     byte nibble(char c);
 
     int loadedDataSlot = -1; // which data slot is currently loaded (if any)
     int loadedEncryptionKeySlot = -1; // which encryption key is currently loaded (if any)
 
+    uint8_t encryptionKeyBuffer[ENC_SYMMETRIC_KEY_BUFFER_SIZE];
+    uint8_t volatileEncryptionKey[ENC_SYMMETRIC_KEY_BUFFER_SIZE];
+
     uint8_t unencryptedBuffer[ENC_UNENCRYPTED_BUFFER_SIZE];
     uint8_t encryptedBuffer[ENC_ENCRYPTED_BUFFER_SIZE];
     char hexBuffer[ENC_HEX_BUFFER_SIZE];
-    uint8_t encryptionKeyBuffer[ENC_SYMMETRIC_KEY_BUFFER_SIZE];
-    uint8_t volatileEncryptionKey[ENC_SYMMETRIC_KEY_BUFFER_SIZE];
     char deviceId[ENC_DATA_SLOT_SIZE + 1];
 
     int findEncryptionBufferEnd (uint8_t* buffer, int maxLen);
     int findDecryptionBufferEnd (uint8_t* buffer, int maxLen);
-    virtual void prepareForEncryption () = 0;
-    virtual void prepareForVolatileEncryption() = 0;
 
-    TrustStore* trustStore;
 };
 #endif

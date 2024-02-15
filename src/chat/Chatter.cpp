@@ -4,7 +4,14 @@
 bool Chatter::init () {
     running = false;
     if (mode == BridgeMode || mode == BasicMode) {
-        encryptor = new ChaChaEncryptor(trustStore);
+
+#if defined(ARDUINO_UNOR4_WIFI)
+        hsm = new ArdAteccHsm();
+#elif defined(ARDUINO_SAM_DUE)
+        hsm = new SparkAteccHsm();
+#endif        
+
+        encryptor = new Encryptor(trustStore, hsm);
 
         if(encryptor->init()) {
             // clear all messages
@@ -18,7 +25,7 @@ bool Chatter::init () {
             deviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
 
             // preload encryption key
-            encryptor->loadEncryptionKey(ENCRYPTION_KEY_SLOT);
+            //encryptor->loadEncryptionKey(ENCRYPTION_KEY_SLOT);
 
             // wifi ssid/pw occupies its own slot
             encryptor->loadDataSlot(WIFI_SSID_SLOT);
@@ -388,7 +395,7 @@ bool Chatter::retrieveMessage () {
                         int encryptedLength = receiveBuffer.contentLength; // exclude header
                         uint8_t* encryptedMessage = (uint8_t*)(receiveBuffer.rawMessage + receiveBuffer.headerLength);
 
-                        encryptor->decrypt(encryptedMessage, encryptedLength, ENCRYPTION_KEY_SLOT);
+                        encryptor->decrypt(encryptedMessage, encryptedLength);
                         uint8_t* unencryptedBuffer = encryptor->getUnencryptedBuffer();
                         int unencryptedLen = encryptor->getUnencryptedBufferLength();
 
@@ -582,7 +589,7 @@ int Chatter::populateSendBufferContent (uint8_t* message, int length, ChatterCha
 
     if (channel->isEncrypted() && isMetadata == false) {
         // encrypt the message
-        encryptor->encrypt((const char*)message, length, ENCRYPTION_KEY_SLOT);
+        encryptor->encrypt((const char*)message, length);
         int encryptedSize = encryptor->getEncryptedBufferLength();
 
         for (int i = 0; i < encryptedSize; i++) {

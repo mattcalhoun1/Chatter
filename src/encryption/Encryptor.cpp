@@ -1,33 +1,56 @@
 #include "Encryptor.h"
 
 bool Encryptor::init() {
-  if (!ECCX08.begin()) {
-    logConsole("Failed to communicate with ECC508/ECC608!");
-    return false;
-  }
+    if (!hsm->init()) {
+        logConsole("Failed to communicate with HSM!");
+        return false;
+    }
 
-  if (!lockEncryptionDevice()) {
-    logConsole("The ECC508/ECC608 is not locked!");
-    return false;
-  }
+    if (!hsm->lockDevice(CHATTER_SIGN_PK_SLOT, CHATTER_STORAGE_PK_SLOT)) {
+        logConsole("HSM Not Locked!");
+        return false;
+    }
 
-  syncKeys();
+    syncKeys();
 
-  if(loadDataSlot(DEVICE_ID_SLOT)) {
-    memset(deviceId, 0, ENC_DATA_SLOT_SIZE+1);
-    getTextSlotBuffer(deviceId);
-    deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
-    logConsole("Device ID: " + String(deviceId));
-  }
-  else {
-    logConsole("Device ID not set on encryption chip!!");
-    deviceId[0] = '\0';
-    return false;
-  }
+    bool hsmInitialized = false;
+    if(loadDataSlot(DEVICE_ID_SLOT)) {
+        memset(deviceId, 0, ENC_DATA_SLOT_SIZE+1);
+        getTextSlotBuffer(deviceId);
+        deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
+        if (strlen(deviceId) == 0) {
+            logConsole("HSM not initialized (no device ID). Need to onboard");
+            return false;
+        }
+        else {
+            logConsole("Device ID: " + String(deviceId));
+        }
+    }
+    else {
+        logConsole("Device ID not set on encryption chip!!");
+        deviceId[0] = '\0';
+        return false;
+    }
 
-  generateNextVolatileKey();
 
-  return true;  
+    if(loadEncryptionKey (ENCRYPTION_KEY_SLOT)) {
+        generateNextVolatileKey();
+
+        algo = new ChaChaAlgo(this->encryptionKeyBuffer, this->volatileEncryptionKey);
+        if(loadEncryptionKey (ENCRYPTION_IV_SLOT)) {
+            algo->init(this->encryptionKeyBuffer);
+        }
+        else {
+            logConsole("Error loading encryption iv");
+            return false;
+        }
+    }
+    else {
+        logConsole("Error loading symmetric key");
+        return true;
+    }
+
+    return true;  
 }
 
 void Encryptor::generateNextVolatileKey() {
@@ -60,8 +83,65 @@ void Encryptor::syncKeys () {
   */
 }
 
+// encrypt the value, place cleartext in encrypted buffer
+void Encryptor::encrypt(const char* plainText, int len) {
+    algo->prepareForEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    if (len < ENC_UNENCRYPTED_BUFFER_SIZE) {
+        // copy the value to the encrypted buffer
+        memcpy(this->unencryptedBuffer, plainText, len); 
+
+        // encrypt the buffer
+        algo->encrypt(this->unencryptedBuffer, len, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: cleartext too large for unencrypted buffer!");
+    }
+}
+void Encryptor::encryptVolatile(const char* plainText, int len) {
+    algo->prepareForVolatileEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    if (len < ENC_UNENCRYPTED_BUFFER_SIZE) {
+        // copy the value to the encrypted buffer
+        memcpy(this->unencryptedBuffer, plainText, len); 
+
+        // encrypt the buffer
+        algo->encryptVolatile(this->unencryptedBuffer, len, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: cleartext too large for unencrypted buffer!");
+    }
+
+}
+
+// decrypt the value, place cleartext in unencrypted buffer
+void Encryptor::decrypt(uint8_t* encrypted, int len) {
+    algo->prepareForEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+
+    if (len < ENC_ENCRYPTED_BUFFER_SIZE) {
+        // copy encrypted value into encrypted buffer
+        memcpy(this->encryptedBuffer, encrypted, len); 
+
+        // decrypt buffer
+        algo->decrypt(this->encryptedBuffer, len, this->unencryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: clear text too large for buffer!");
+    }
+}
+
+void Encryptor::decryptVolatile(uint8_t* encrypted, int len) {
+    algo->prepareForVolatileEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+
+    if (len < ENC_ENCRYPTED_BUFFER_SIZE) {
+        // copy encrypted value into encrypted buffer
+        memcpy(this->encryptedBuffer, encrypted, len); 
+
+        // decrypt buffer
+        algo->decryptVolatile(this->encryptedBuffer, len, this->unencryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: clear text too large for buffer!");
+    }
+
+}
+
 long Encryptor::getRandom() {
-  return ECCX08.random(65535);
+  return hsm->getRandomLong();
 }
 
 void Encryptor::setMessageBuffer(byte *messageBuffer) {
@@ -93,7 +173,11 @@ int Encryptor::getTextSlotBuffer (char* target) {
 
 
 void Encryptor::setDataSlotBuffer (const char* hexData) {
-  hexCharacterStringToBytes(dataSlotBuffer, hexData);
+    if (strlen(hexData) > ENC_DATA_SLOT_SIZE) {
+        logConsole("ERROR: setDataSlotBuffer hex data too large for slot!");
+        return;
+    }
+    hexCharacterStringToBytes(dataSlotBuffer, hexData, ENC_DATA_SLOT_SIZE);
 }
 
 void Encryptor::setDataSlotBuffer (byte* data) {
@@ -116,9 +200,20 @@ byte* Encryptor::getSignatureBuffer () {
   return signatureBuffer;
 }
 
-int Encryptor::sign (int slot) {
+bool Encryptor::sign (int slot) {
+
+    logConsole("About to inovke hsm sign...");
+    delay(500);
+
+    if (hsm == nullptr) {
+        logConsole("Error, hsm is null!!");
+    delay(500);
+        return false;
+    }
+
+
   // Sign whatever is in the message buffer, storing signature in sig buffer
-  return ECCX08.ecSign(slot, messageBuffer, signatureBuffer) == 0;
+  return hsm->sign(slot, messageBuffer, signatureBuffer);
 }
 
 int Encryptor::generateHash(const char* plainText, int inputLength, uint8_t* hashBuffer) {
@@ -129,95 +224,34 @@ int Encryptor::generateHash(const char* plainText, int inputLength, uint8_t* has
 }
 
 bool Encryptor::setPublicKeyBuffer (const char* publicKey) {
-  hexCharacterStringToBytes(publicKeyBuffer, publicKey);
+  hexCharacterStringToBytes(publicKeyBuffer, publicKey, ENC_PUB_KEY_SIZE);
 }
 
-void Encryptor::loadEncryptionKey (int slot) {
-  if (loadedEncryptionKeySlot == slot) {
-    return;
-  }
-
-  logConsole("Loading encryption key from slot " + String(slot));
-
-  // load that slot into the buffer
-  this->loadDataSlot(slot);
-
-  hexify(this->dataSlotBuffer, ENC_SYMMETRIC_KEY_SIZE);
-
-  // copy over to the key buffer as uint8_t instead of byte
-  for (int i = 0; i < ENC_SYMMETRIC_KEY_SIZE; i++) {
-    this->encryptionKeyBuffer[i] = (uint8_t)(this->hexBuffer[i]);
-  }
-  loadedEncryptionKeySlot = slot;
-}
-
-bool Encryptor::lockEncryptionDevice () {
-  if (!ECCX08.locked()) {
-    if (!ECCX08.writeConfiguration(ECCX08_DEFAULT_TLS_CONFIG)) {
-      logConsole("Writing default config to encryption device failed");
-      return false;
+bool Encryptor::loadEncryptionKey (int slot) {
+    if (loadedEncryptionKeySlot == slot) {
+        return true;
     }
 
-    if (!ECCX08.lock()) {
-      logConsole("Locking ECCX08 configuration failed!");
-      return false;
+    logConsole("Loading encryption key from slot " + String(slot));
+
+    // load that slot into the buffer
+    if(this->loadDataSlot(slot)) {
+        hexify(this->dataSlotBuffer, ENC_SYMMETRIC_KEY_SIZE);
+
+        // copy over to the key buffer as uint8_t instead of byte
+        for (int i = 0; i < ENC_SYMMETRIC_KEY_SIZE; i++) {
+            this->encryptionKeyBuffer[i] = (uint8_t)(this->hexBuffer[i]);
+        }
+        loadedEncryptionKeySlot = slot;
+        return true;
     }
 
-    logConsole("Encryption device successfully locked");
-
-    // since this device was just locked, generate the initial keypair
-    generateNewKeypair(CHATTER_SIGN_PK_SLOT, CHATTER_STORAGE_PK_SLOT, CHATTER_SSC_YEAR, CHATTER_SSC_MONTH, CHATTER_SSC_DATE, CHATTER_SSC_HOUR, CHATTER_SSC_VALID);
-  }
-
-  return true;
-}
-
-bool Encryptor::generateNewKeypair (int pkSlot, int pkStorage, int year, int month, int day, int hour, int expire) {
-  if (!ECCX08SelfSignedCert.beginStorage(pkSlot, pkStorage, true)) {
-    logConsole("Error starting self signed cert generation!");
+    logConsole("unable to load encryption key");
     return false;
-  }
-
-  // if rtc is available, use that instead
-  ECCX08SelfSignedCert.setCommonName(ECCX08.serialNumber());
-  ECCX08SelfSignedCert.setIssueYear(year);
-  ECCX08SelfSignedCert.setIssueMonth(month);
-  ECCX08SelfSignedCert.setIssueDay(day);
-  ECCX08SelfSignedCert.setIssueHour(hour);
-  ECCX08SelfSignedCert.setExpireYears(expire);
-
-  String cert = ECCX08SelfSignedCert.endStorage();
-
-  if (!cert) {
-    logConsole("Error generating self signed cert!");
-    return false;
-  }
-
-  logConsole("New Cert: ");
-  logConsole(cert);
-
-  logConsole("SHA1: ");
-  logConsole(ECCX08SelfSignedCert.sha1());
-
-  return true;
 }
 
 bool Encryptor::loadPublicKey(int slot) {
-
-  int loadResult = ECCX08.generatePublicKey(slot, publicKeyBuffer);
-  if (loadResult == 1) {
-    // This interferes with onboarding
-    // print the public key
-    /*Serial.print("Public key of slot ");
-    Serial.print(slot);
-    Serial.print(" is:   ");
-    logBufferHex(publicKeyBuffer, ENC_PUB_KEY_SIZE);*/
-    return true;
-  }
-  else {
-    logConsole("Pub key load returned error: " + String(loadResult));
-  }
-  return false;
+  return hsm->loadPublicKey(slot, publicKeyBuffer);
 }
 
 byte* Encryptor::getPublicKeyBuffer() {
@@ -225,12 +259,12 @@ byte* Encryptor::getPublicKeyBuffer() {
 }
 
 bool Encryptor::verify() {
-  return ECCX08.ecdsaVerify(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
+  return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
 }
 
 bool Encryptor::verify(int slot) {
   if (loadPublicKey(slot)) {
-    return ECCX08.ecdsaVerify(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
+    return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
   }
   else {
     logConsole("Load public key failed during sig verify");
@@ -239,7 +273,7 @@ bool Encryptor::verify(int slot) {
 }
 
 bool Encryptor::verify(const byte pubkey[]) {
-  return ECCX08.ecdsaVerify(this->getMessageBuffer(), this->getSignatureBuffer(), pubkey);
+    return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), pubkey);
 }
 
 bool Encryptor::loadDataSlot(int slot) {
@@ -249,30 +283,26 @@ bool Encryptor::loadDataSlot(int slot) {
   }
 
   memset(dataSlotBuffer, 0, ENC_DATA_SLOT_SIZE);
-  int result = ECCX08.readSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE);
-
-  if (result == 1) {
+  if (hsm->readSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE)) {
     loadedDataSlot = slot;
     return true;
   }
   else {
     loadedDataSlot = -1;
-    logConsole("Load data slot returned fail: " + String(result));
+    logConsole("Load data slot failed");
     return false;
   }
 }
 
 bool Encryptor::saveDataSlot(int slot) {
   loadedDataSlot = -1;
-  int result = ECCX08.writeSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE);
-  if (result == 1) {
+  if (hsm->writeSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE)) {
     return true;
   }
   else {
-    logConsole("Save data slot returned fail: " + String(result));
+    logConsole("Save data slot failed");
     return false;
   }
-
 }
 
 int Encryptor::findEncryptionBufferEnd (uint8_t* buffer, int maxLen) {
@@ -346,18 +376,18 @@ void Encryptor::logConsole(String msg) {
   }
 }
 
-void Encryptor::hexCharacterStringToBytes(byte *byteArray, const char *hexString)
+void Encryptor::hexCharacterStringToBytes(byte *byteArray, const char *hexString, int maxBufferSize)
 {
-  hexCharacterStringToBytes(byteArray, hexString, strlen(hexString));
+  hexCharacterStringToBytesMax(byteArray, hexString, strlen(hexString), maxBufferSize);
 }
 
-void Encryptor::hexCharacterStringToBytes(byte *byteArray, const char *hexString, int hexLength) {
-  bool oddLength = hexLength & 1;
+void Encryptor::hexCharacterStringToBytesMax(byte *byteArray, const char *hexString, int hexLength, int maxBufferSize) {
+    bool oddLength = hexLength & 1;
 
-  byte currentByte = 0;
-  byte byteIndex = 0;
-
-  for (byte charIndex = 0; charIndex < hexLength; charIndex++)
+    byte currentByte = 0;
+    byte byteIndex = 0;
+    byte charIndex = 0;
+  for (charIndex = 0; charIndex < hexLength && byteIndex < maxBufferSize; charIndex++)
   {
     bool oddCharIndex = charIndex & 1;
 
@@ -393,6 +423,10 @@ void Encryptor::hexCharacterStringToBytes(byte *byteArray, const char *hexString
         currentByte = 0;
       }
     }
+  }
+
+  if (byteIndex >= maxBufferSize && charIndex < hexLength) {
+    logConsole("Error buffer overflow hexCharacterStringToBytesMax");
   }
 }
 

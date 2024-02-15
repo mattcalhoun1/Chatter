@@ -9,7 +9,10 @@
 //#include "CANChannel.h"
 #include "UARTChannel.h"
 #include "../encryption/Encryptor.h"
-#include "../encryption/ChaChaEncryptor.h"
+//#include "../encryption/ChaChaEncryptor.h"
+#include "../encryption/ArdAteccHsm.h"
+#include "../encryption/SparkAteccHsm.h"
+#include "../encryption/Hsm.h"
 #include "ChatStatusCallback.h"
 #include "ChatterPacket.h"
 #include "../storage/PacketStore.h"
@@ -123,6 +126,7 @@ class Chatter : ChatStatusCallback {
     bool mirror = false; // whether to mirror messages across multiple channels
     bool stripe = false; // whether to stripe messages across multiple channels
 
+    Hsm* hsm;
     ChatterChannel* getDefaultChannel ();
     ChatterChannel* hotChannel = 0; // one with newest message
 
