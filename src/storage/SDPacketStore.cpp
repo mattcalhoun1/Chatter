@@ -21,6 +21,13 @@ bool SDPacketStore::init() {
 }
 
 bool SDPacketStore::setReceived (const char* senderId, const char* messageId, int packetNum) {
+  // make sure sender exists
+  sprintf(packetDirectoryName, "%s%s", receivedDir, senderId);
+  if (!SD.exists(packetDirectoryName)) {
+    SD.mkdir(packetDirectoryName);
+  }
+  
+
   sprintf(packetDirectoryName, "%s%s/%s%03d", receivedDir, senderId, messageId, packetNum);
   if (!SD.exists(packetDirectoryName)) {
     if(SD.mkdir(packetDirectoryName)) {
@@ -238,6 +245,12 @@ bool SDPacketStore::savePacket(ChatterPacket* packet, Encryptor* encryptor) {
       memcpy(senderId, packet->sender, STORAGE_DEVICE_ID_LENGTH + 1);
       memcpy(messageId, packet->messageId, STORAGE_MESSAGE_ID_LENGTH + 1);
       memcpy(packetId, packet->chunkId, STORAGE_CHUNK_ID_LENGTH + 1);
+
+
+        sprintf(packetDirectoryName, "%s%s", messageDir, senderId);
+        if (!SD.exists(packetDirectoryName)) {
+            SD.mkdir(packetDirectoryName);
+        }
 
       sprintf(packetFileName, "%s%s/%s/%s", messageDir, senderId, messageId, packetId);
 
