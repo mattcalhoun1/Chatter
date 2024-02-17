@@ -1,6 +1,6 @@
 #include "ZeroRtClock.h"
 
-#ifdef ARDUINO_SAMD_MKRZERO
+#if defined(ARDUINO_SAMD_MKRZERO) || defined (ARDUINO_SAMD_NANO_33_IOT)
 
 ZeroRtClock::ZeroRtClock () {
   rtc.begin(); // initialize RTC

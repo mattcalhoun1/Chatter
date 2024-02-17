@@ -1,47 +1,59 @@
 #include "ClusterAdmin.h"
 
 bool ClusterAdmin::handleAdminRequest () {
-    const char* nextLine = Serial.readStringUntil('\n').c_str();
 
-    AdminRequestType requestType = extractRequestType(nextLine);
-    ChatterDeviceType deviceType = extractDeviceType(nextLine);
+    while (Serial.available() > 0 && (Serial.peek() == '\n' || Serial.peek() == '\r' || Serial.peek() == '\0')) {
+        Serial.print("skipping: ");Serial.print((char)Serial.read());
+    }
 
-    //Serial.println("Admin request type: " + String(requestType) + " from device type: " + String(deviceType));
+    if (Serial.available() > 0) {
+        String sNextLine = Serial.readStringUntil('\n');
+        const char* nextLine = sNextLine.c_str(); 
 
-    if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
-        // pub key is required
-        if (ingestPublicKey(chatter->getEncryptor()->getPublicKeyBuffer())) {
+        AdminRequestType requestType = extractRequestType(nextLine);
+        ChatterDeviceType deviceType = extractDeviceType(nextLine);
 
-            // future enhancement: this would be a good point to generate a message to challenge for a signature. 
+        Serial.println("Admin request type: " + String(requestType) + " from device type: " + String(deviceType) + " Received " + sNextLine);
 
-            // check if this device id is known
-            char knownDeviceId[CHATTER_DEVICE_ID_SIZE+1];
-            char knownAlias[CHATTER_ALIAS_NAME_SIZE+1];
-            bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
-            if(trustedKey) {
-                chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
-                /*Serial.print("We Know: ");
-                Serial.print(knownDeviceId);
-                Serial.print("/");
-                Serial.println(knownAlias);*/
+        if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
+            // pub key is required
+            if (ingestPublicKey(chatter->getEncryptor()->getPublicKeyBuffer())) {
 
-                // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
-                // if it's sync, we are good to proceed
-                return syncDevice(knownDeviceId, knownAlias);
-            } 
-            else {
-                // we don't know this key, which is to be expected if it's on onboard
-                if (requestType == AdminRequestOnboard) {
-                    return onboardNewDevice(deviceType, (const char*)chatter->getEncryptor()->getPublicKeyBuffer());
+                // future enhancement: this would be a good point to generate a message to challenge for a signature. 
+
+                // check if this device id is known
+                char knownDeviceId[CHATTER_DEVICE_ID_SIZE+1];
+                char knownAlias[CHATTER_ALIAS_NAME_SIZE+1];
+                bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
+                if(trustedKey) {
+                    chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
+                    /*Serial.print("We Know: ");
+                    Serial.print(knownDeviceId);
+                    Serial.print("/");
+                    Serial.println(knownAlias);*/
+
+                    // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
+                    // if it's sync, we are good to proceed
+                    return syncDevice(knownDeviceId, knownAlias);
+                } 
+                else {
+                    // we don't know this key, which is to be expected if it's on onboard
+                    if (requestType == AdminRequestOnboard) {
+                        return onboardNewDevice(deviceType, (const char*)chatter->getEncryptor()->getPublicKeyBuffer());
+                    }
                 }
             }
+            else {
+                Serial.println("Bad public key!");
+            }
         }
-        else {
-            Serial.println("Bad public key!");
+        else if (requestType == AdminRequestGenesis && deviceType == ChatterDeviceRaw) {
+            // this needs to be done by shorting pin A0
+            return false;
         }
     }
-    else if (requestType == AdminRequestGenesis && deviceType == ChatterDeviceRaw) {
-        // this needs to be done by shorting pin A0
+    else {
+        // it was just control characters
         return false;
     }
 
@@ -183,6 +195,112 @@ bool ClusterAdmin::genesis () {
     chatter->getRtc()->setNewDateTime(newDate);
     
     Serial.println("New Date: " + String(chatter->getRtc()->getSortableTime()));
+
+    // clear out existing truststore, and add self with new id
+    chatter->getTrustStore()->clearTruststore();
+    encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
+    encryptor->hexify(encryptor->getPublicKeyBuffer(), ENC_PUB_KEY_SIZE);
+    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getHexBuffer(), true);
+
+    Serial.println("Genesis Complete! Ready to onboard devices.");
+
+    return true;
+}
+
+bool ClusterAdmin::genesisRandom () {
+    Serial.println("Creating a new random cluster.");
+    if (chatter == nullptr) {
+        Serial.println("Chatter is null!");
+    }
+
+    Encryptor* encryptor = chatter->getEncryptor();
+
+    Serial.println("Generating random number");
+    Serial.println("A random number: " + String(encryptor->getRandom()));
+    // global network id = US for now
+    // Generate a random local network id, ascii 65-90 inclusive
+    char newNetworkId[9];
+    newNetworkId[0] = 'U';
+    newNetworkId[1] = 'S';
+
+    for (int i = 0; i < 3; i++) {
+        int nextDigit = (encryptor->getRandom() % 26) + 65;
+        newNetworkId[i+2] = (char)nextDigit;
+    }
+    // device id is network info + 000 for this genesis device
+    memset(newNetworkId+5, '0', 3);
+    newNetworkId[8] = '\0';
+
+    // save it all in the atecc
+    Serial.print("New device ID: ");
+    Serial.print(newNetworkId);
+    Serial.println("");
+
+    // device id setup
+    encryptor->setTextSlotBuffer(newNetworkId);
+    encryptor->saveDataSlot(DEVICE_ID_SLOT);
+
+    // generate a new key
+    // 0 - 9, A - F
+    // ascii 0 == 48
+    // ascii A == 65
+    char newKey[33];
+    newKey[32] = '\0';
+    // this loop assumes the key slot and iv slot are adjacent
+    for (int keySlot = ENCRYPTION_KEY_SLOT; keySlot <= ENCRYPTION_IV_SLOT; keySlot++) {
+        for (int i = 0; i < 32; i++) {
+            int nextDigit = (encryptor->getRandom() % 16);
+            if (nextDigit < 6) {
+                // char A-F
+                newKey[i] = (char)(nextDigit + 65);
+            }
+            else {
+                // number 0-9
+                newKey[i] = (char)(nextDigit - 6 + 48);
+            }
+        }
+
+        Serial.print("New key: ");
+        Serial.print(newKey);
+        Serial.println("");
+
+        // update the symmetric key
+        encryptor->setDataSlotBuffer(newKey);
+        if (encryptor->saveDataSlot(keySlot)) {
+            Serial.println("Symmetric Key Updated");
+        }
+
+    }
+
+    encryptor->setTextSlotBuffer("915.0");
+    if(encryptor->saveDataSlot(LORA_FREQUENCY_SLOT)) {
+        Serial.println("Lora Frequency Saved");
+    }
+    else {
+        Serial.println("Lora Frequency Failed!");
+    }
+
+    char ssid[WIFI_SSID_MAX_LEN];
+    char pw[WIFI_PASSWORD_MAX_LEN];
+    memset(ssid, 0, WIFI_SSID_MAX_LEN);
+    memset(pw, 0, WIFI_PASSWORD_MAX_LEN);
+
+    String newWifiCreds = String("xxx") + String(ENCRYPTION_CRED_DELIMITER) + String("xxx");
+    encryptor->setTextSlotBuffer(newWifiCreds.c_str());
+    if(encryptor->saveDataSlot(WIFI_SSID_SLOT)) {
+        Serial.println("WiFi Config Saved: " + newWifiCreds);
+    }
+    else {
+        Serial.println("WiFi Config Failed!");
+    }
+
+    char newDate[13]; //yymmddhhmmss
+    // default to 1/1/2024 if clock not set. will have to fix later
+    if (strcmp(chatter->getRtc()->getSortableTime(), "240101010101") < 0) {
+        chatter->getRtc()->setNewDateTime("240101010101");
+        Serial.println("New Date: " + String(chatter->getRtc()->getSortableTime()));
+    }
+    
 
     // clear out existing truststore, and add self with new id
     chatter->getTrustStore()->clearTruststore();

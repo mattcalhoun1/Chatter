@@ -2,21 +2,13 @@
 #include "ChaChaAlgo.h"
 
 ChaChaAlgo::ChaChaAlgo(uint8_t* symmetricKey, uint8_t* volatileKey) {
-    Serial.println("Key: ");
-    for (int i = 0; i < ENC_SYMMETRIC_KEY_SIZE; i++) {
-        Serial.print(symmetricKey[i]); Serial.print(" ");
-    }
-    Serial.println("");
-
     chacha.setKey(symmetricKey, ENC_SYMMETRIC_KEY_SIZE);
     volatileChacha.setKey(volatileKey, ENC_SYMMETRIC_KEY_SIZE);
 }
 
 bool ChaChaAlgo::init (uint8_t* iv) {
     memcpy(this->iv, iv, ENC_IV_SIZE);
-
     logConsole("ChaCha Algo Configured");
-
     return true;
 }
 

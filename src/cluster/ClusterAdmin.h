@@ -1,5 +1,5 @@
-#include "Chatter.h"
-#include "ChatGlobals.h"
+#include "../chat/Chatter.h"
+#include "../chat/ChatGlobals.h"
 #include "ClusterManagerBase.h"
 #include <List.hpp>
 
@@ -18,6 +18,7 @@ class ClusterAdmin : public ClusterManagerBase {
         ClusterAdmin (Chatter* _chatter) : ClusterManagerBase (_chatter) {}
         bool handleAdminRequest ();
         bool genesis ();
+        bool genesisRandom ();
 
     private:
         bool syncDevice (const char* deviceId, const char* alias);

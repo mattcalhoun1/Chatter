@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "ChatGlobals.h"
-#include "Chatter.h"
+#include "../chat/ChatGlobals.h"
+#include "../chat/Chatter.h"
 
 #ifndef CHATTERCLUSTERBASE_H
 #define CHATTERCLUSTERBASE_H

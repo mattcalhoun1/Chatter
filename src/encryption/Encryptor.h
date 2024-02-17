@@ -25,11 +25,11 @@ class Encryptor {
     const char* getDeviceId(); // unique alphanumeric id of this device
     long getRandom();
     bool verify();
-    bool verify(int slot);
+    bool verify(uint8_t slot);
     bool verify(const byte pubkey[]);
-    bool signMessage(int slot);
+    bool signMessage(uint8_t slot);
 
-    bool loadPublicKey (int slot);
+    bool loadPublicKey (uint8_t slot);
     bool setPublicKeyBuffer (const char* publicKey);
     byte* getPublicKeyBuffer ();
 
@@ -38,8 +38,8 @@ class Encryptor {
     void setMessageBuffer (byte* messageBuffer);
     byte* getMessageBuffer ();
 
-    bool loadDataSlot(int slot);
-    bool saveDataSlot(int slot);
+    bool loadDataSlot(uint8_t slot);
+    bool saveDataSlot(uint8_t slot);
 
     // text and data slots are the same, just treated differently
     // depending which method you choose (hex vs clear text)
@@ -83,7 +83,7 @@ class Encryptor {
     byte messageBuffer[ENC_MSG_BUFFER_SIZE]; // can only sign exactly 32 bytes
     byte publicKeyBuffer[ENC_PUB_KEY_SIZE]; // holds public key for validating messagees
     byte dataSlotBuffer[ENC_DATA_SLOT_BUFFER_SIZE];
-    bool loadEncryptionKey (int slot);
+    bool loadEncryptionKey (uint8_t slot);
     void syncKeys ();
     void generateNextVolatileKey();
 

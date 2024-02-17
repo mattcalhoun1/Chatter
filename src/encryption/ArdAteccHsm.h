@@ -5,6 +5,9 @@
 #include <Arduino.h>
 #include "Hsm.h"
 #include "EncryptionGlobals.h"
+#include "Secrets.h"
+#include "SDSecrets.h"
+#include "ArdAteccSecrets.h"
 
 #include <ArduinoECCX08.h>
 #include <utility/ECCX08SelfSignedCert.h>
@@ -16,21 +19,24 @@
 class ArdAteccHsm : public Hsm {
     public:
         bool init();
-        bool lockDevice (int defaultPkSlot, int defaultPkStorage);
-        bool generateNewKeypair (int pkSlot, int pkStorage);
+        bool lockDevice (uint8_t defaultPkSlot, uint8_t defaultPkStorage);
+        bool generateNewKeypair (uint8_t pkSlot, uint8_t pkStorage);
 
         long getRandomLong();
 
-        bool loadPublicKey(int slot, byte* publicKeyBuffer);
+        bool loadPublicKey(uint8_t slot, byte* publicKeyBuffer);
         bool verifySignature(uint8_t* message, uint8_t* signature, const byte* publicKey);
-        bool sign (int slot, uint8_t* message, uint8_t* signatureBuffer);
+        bool sign (uint8_t slot, uint8_t* message, uint8_t* signatureBuffer);
 
-        bool readSlot(int slot, byte* dataBuffer, int dataLength);
-        bool writeSlot(int slot, byte* dataBuffer, int dataLength);
+        bool readSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength);
+        bool writeSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength);
     
     protected:
         void logConsole(const char* message);
         void logConsole(String message);
+        Secrets* secrets;
+        int freeMemory();
+
 };
 
 #endif

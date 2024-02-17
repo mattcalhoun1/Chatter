@@ -54,7 +54,7 @@ bool Encryptor::init() {
 }
 
 void Encryptor::generateNextVolatileKey() {
-  int generatedBytes = 0;
+  uint8_t generatedBytes = 0;
   while (generatedBytes < ENC_VOLATILE_KEY_SIZE) {
     volatileEncryptionKey[generatedBytes++] = (uint8_t)getRandom();
   }
@@ -200,7 +200,7 @@ byte* Encryptor::getSignatureBuffer () {
   return signatureBuffer;
 }
 
-bool Encryptor::signMessage (int slot) {
+bool Encryptor::signMessage (uint8_t slot) {
   // Sign whatever is in the message buffer, storing signature in sig buffer
   return hsm->sign(slot, messageBuffer, signatureBuffer);
 }
@@ -216,12 +216,10 @@ bool Encryptor::setPublicKeyBuffer (const char* publicKey) {
   hexCharacterStringToBytes(publicKeyBuffer, publicKey, ENC_PUB_KEY_SIZE);
 }
 
-bool Encryptor::loadEncryptionKey (int slot) {
+bool Encryptor::loadEncryptionKey (uint8_t slot) {
     if (loadedEncryptionKeySlot == slot) {
         return true;
     }
-
-    logConsole("Loading encryption key from slot " + String(slot));
 
     // load that slot into the buffer
     if(this->loadDataSlot(slot)) {
@@ -239,7 +237,7 @@ bool Encryptor::loadEncryptionKey (int slot) {
     return false;
 }
 
-bool Encryptor::loadPublicKey(int slot) {
+bool Encryptor::loadPublicKey(uint8_t slot) {
   return hsm->loadPublicKey(slot, publicKeyBuffer);
 }
 
@@ -251,7 +249,7 @@ bool Encryptor::verify() {
   return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
 }
 
-bool Encryptor::verify(int slot) {
+bool Encryptor::verify(uint8_t slot) {
   if (loadPublicKey(slot)) {
     return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), this->publicKeyBuffer);
   }
@@ -265,7 +263,7 @@ bool Encryptor::verify(const byte pubkey[]) {
     return hsm->verifySignature(this->getMessageBuffer(), this->getSignatureBuffer(), pubkey);
 }
 
-bool Encryptor::loadDataSlot(int slot) {
+bool Encryptor::loadDataSlot(uint8_t slot) {
   // if already loaded, skip it
   if (loadedDataSlot == slot) {
     return true;
@@ -283,7 +281,7 @@ bool Encryptor::loadDataSlot(int slot) {
   }
 }
 
-bool Encryptor::saveDataSlot(int slot) {
+bool Encryptor::saveDataSlot(uint8_t slot) {
   loadedDataSlot = -1;
   if (hsm->writeSlot(slot, dataSlotBuffer, ENC_DATA_SLOT_SIZE)) {
     return true;
@@ -342,11 +340,13 @@ const char* Encryptor::getHexBuffer () {
 void Encryptor::hexify (const byte input[], int inputLength) {
   static const char characters[] = "0123456789ABCDEF";
   char* tmpHexBuffer = hexBuffer;
-  
+
+    int totalBytes = 0;
   for (int i = 0; i < inputLength; i++) {
     byte oneInputByte = input[i];
     *tmpHexBuffer++ = characters[oneInputByte >> 4];
     *tmpHexBuffer++ = characters[oneInputByte & 0x0F];
+    totalBytes += 2;
   }
   *tmpHexBuffer = '\0';// terminate c string
 }

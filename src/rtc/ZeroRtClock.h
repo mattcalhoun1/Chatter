@@ -1,7 +1,7 @@
 #include "RTClockBase.h"
 #include <Arduino.h>
 
-#ifdef ARDUINO_SAMD_MKRZERO
+#if defined(ARDUINO_SAMD_MKRZERO) || defined (ARDUINO_SAMD_NANO_33_IOT)
 
 #include <DS3231.h>
 #include "RTCZero.h"

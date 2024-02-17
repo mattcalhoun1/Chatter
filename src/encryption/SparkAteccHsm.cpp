@@ -15,7 +15,7 @@ bool SparkAteccHsm::init() {
     return result;
 }
 
-bool SparkAteccHsm::lockDevice (int defaultPkSlot, int defaultPkStorage) {
+bool SparkAteccHsm::lockDevice (uint8_t defaultPkSlot, uint8_t defaultPkStorage) {
     atecc.readConfigZone(false); // Debug argument false (OFF)
     if (!atecc.configLockStatus) {
         if (!atecc.writeConfigSparkFun()) {
@@ -57,7 +57,7 @@ bool SparkAteccHsm::lockDevice (int defaultPkSlot, int defaultPkStorage) {
   return true;
 }
 
-bool SparkAteccHsm::generateNewKeypair (int pkSlot, int pkStorage) {
+bool SparkAteccHsm::generateNewKeypair (uint8_t pkSlot, uint8_t pkStorage) {
   return atecc.createNewKeyPair(pkSlot);
 }
 
@@ -65,7 +65,7 @@ long SparkAteccHsm::getRandomLong() {
     return atecc.random(65535);
 }
 
-bool SparkAteccHsm::loadPublicKey(int slot, byte* publicKeyBuffer) {
+bool SparkAteccHsm::loadPublicKey(uint8_t slot, byte* publicKeyBuffer) {
     if(atecc.generatePublicKey(slot, false)) {
         memcpy(publicKeyBuffer, atecc.publicKey64Bytes, ENC_ECC_DSA_KEY_SIZE);
         return true;
@@ -78,7 +78,7 @@ bool SparkAteccHsm::verifySignature(uint8_t* message, uint8_t* signature, const 
     return atecc.verifySignature(message, signature, (uint8_t*)publicKey);
 }
 
-bool SparkAteccHsm::sign (int slot, uint8_t* message, uint8_t* signatureBuffer) {
+bool SparkAteccHsm::sign (uint8_t slot, uint8_t* message, uint8_t* signatureBuffer) {
     logConsole("SparkAteccHsm: invoking sign");
     delay(500);
     memset(signatureBuffer, 0, ENC_SIGNATURE_SIZE);
@@ -108,15 +108,15 @@ bool SparkAteccHsm::sign (int slot, uint8_t* message, uint8_t* signatureBuffer) 
     return true;
 }
 
-bool SparkAteccHsm::readSlot(int slot, byte* dataBuffer, int dataLength) {
+bool SparkAteccHsm::readSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength) {
     return atecc.read_output(ZONE_DATA, getEepromAddress(slot, 0, 0), dataLength, (uint8_t*)dataBuffer, false);
 }
 
-bool SparkAteccHsm::writeSlot(int slot, byte* dataBuffer, int dataLength) {
+bool SparkAteccHsm::writeSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength) {
     return atecc.write(ZONE_DATA, getEepromAddress(slot, 0, 0), (uint8_t*) dataBuffer, dataLength);
 }
 
-uint16_t SparkAteccHsm::getEepromAddress (int slot, int block, int offset) {
+uint16_t SparkAteccHsm::getEepromAddress (uint8_t slot, uint8_t block, uint8_t offset) {
     // on atecc608 , one block is 32 bytes. each data slot has 2 blocks (64) plus a few more byte to make it 72 total
     return EEPROM_DATA_ADDRESS(slot, block, offset);	
 }

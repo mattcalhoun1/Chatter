@@ -4,11 +4,27 @@
 #ifndef ARDUINO_SAM_DUE
 
 bool ArdAteccHsm::init() {
-  return ECCX08.begin();
+  bool success = ECCX08.begin();
+
+  if (success) {
+#if defined (ARDUINO_SAMD_NANO_33_IOT)
+    secrets = new SDSecrets();
+#elif defined (ARDUINO_UNOR4_WIFI)
+    secrets = new ArdAteccSecrets();
+#endif
+    success = secrets->init();
+  }
+  else {
+    logConsole("SECRETES not intiialized");
+  }
+
+  return success;
 }
 
-bool ArdAteccHsm::lockDevice (int defaultPkSlot, int defaultPkStorage) {
+bool ArdAteccHsm::lockDevice (uint8_t defaultPkSlot, uint8_t defaultPkStorage) {
   if (!ECCX08.locked()) {
+    logConsole("Device not locked");
+
     if (!ECCX08.writeConfiguration(ECCX08_DEFAULT_TLS_CONFIG)) {
       logConsole("Writing default config to encryption device failed");
       return false;
@@ -28,9 +44,9 @@ bool ArdAteccHsm::lockDevice (int defaultPkSlot, int defaultPkStorage) {
   return true;
 }
 
-bool ArdAteccHsm::generateNewKeypair (int pkSlot, int pkStorage) {
+bool ArdAteccHsm::generateNewKeypair (uint8_t pkSlot, uint8_t pkStorage) {
   if (!ECCX08SelfSignedCert.beginStorage(pkSlot, pkStorage, true)) {
-    logConsole("Error starting self signed cert generation!");
+    logConsole("Error starting self signed cert generation in pk slot: " + String(pkSlot) + " storage slot: " + String(pkStorage));
     return false;
   }
 
@@ -62,7 +78,7 @@ long ArdAteccHsm::getRandomLong() {
     return ECCX08.random(65535);
 }
 
-bool ArdAteccHsm::loadPublicKey(int slot, byte* publicKeyBuffer) {
+bool ArdAteccHsm::loadPublicKey(uint8_t slot, byte* publicKeyBuffer) {
     return ECCX08.generatePublicKey(slot, publicKeyBuffer) == 1;
 }
 
@@ -70,16 +86,16 @@ bool ArdAteccHsm::verifySignature(uint8_t* message, uint8_t* signature, const by
     return ECCX08.ecdsaVerify(message, signature, publicKey) == 1;
 }
 
-bool ArdAteccHsm::sign (int slot, uint8_t* message, uint8_t* signatureBuffer) {
+bool ArdAteccHsm::sign (uint8_t slot, uint8_t* message, uint8_t* signatureBuffer) {
     return ECCX08.ecSign(slot, message, signatureBuffer) == 1;
 }
 
-bool ArdAteccHsm::readSlot(int slot, byte* dataBuffer, int dataLength) {
-    return ECCX08.readSlot(slot, dataBuffer, dataLength) == 1;
+bool ArdAteccHsm::readSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength) {
+    return secrets->readSlot(slot, dataBuffer, dataLength);
 }
 
-bool ArdAteccHsm::writeSlot(int slot, byte* dataBuffer, int dataLength) {
-    return ECCX08.writeSlot(slot, dataBuffer, dataLength) == 1;
+bool ArdAteccHsm::writeSlot(uint8_t slot, byte* dataBuffer, uint8_t dataLength) {
+    return secrets->writeSlot(slot, dataBuffer, dataLength);
 }
 
 void ArdAteccHsm::logConsole (const char* message) {
@@ -92,4 +108,22 @@ void ArdAteccHsm::logConsole (String message) {
     logConsole(message.c_str());
 }
 
+
+#ifdef __arm__
+// should use uinstd.h to define sbrk but Due causes a conflict
+extern "C" char* sbrk(int incr);
+#else  // __ARM__
+extern char *__brkval;
+#endif  // __arm__
+
+int ArdAteccHsm::freeMemory() {
+  char top;
+#ifdef __arm__
+  return &top - reinterpret_cast<char*>(sbrk(0));
+#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
+  return &top - __brkval;
+#else  // __arm__
+  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
+#endif  // __arm__
+}
 #endif

@@ -7,6 +7,8 @@ bool Chatter::init () {
 
 #if defined(ARDUINO_UNOR4_WIFI)
         hsm = new ArdAteccHsm();
+#elif defined(ARDUINO_SAMD_NANO_33_IOT)
+        hsm = new ArdAteccHsm();
 #elif defined(ARDUINO_SAM_DUE)
         hsm = new SparkAteccHsm();
 #endif        
@@ -46,6 +48,8 @@ bool Chatter::init () {
             for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
                 status[d] = ChatNoDevice;
             }
+
+            
             logConsole("Device ID: " + String(deviceId));
 
             logConsole("Known Devices: ");

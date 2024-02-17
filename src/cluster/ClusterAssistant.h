@@ -1,6 +1,6 @@
-#include "ChatGlobals.h"
+#include "../chat/ChatGlobals.h"
 #include "ClusterManagerBase.h"
-#include "Chatter.h"
+#include "../chat/Chatter.h"
 
 #ifndef CLUSTERASSISTANT_H
 #define CLUSTERASSISTANT_H

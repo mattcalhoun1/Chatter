@@ -10,6 +10,7 @@ bool ClusterAssistant::attemptOnboard () {
 
     sendOnboardRequest();
     sendPublicKey(encryptor);
+    Serial.println("end pub key");
 
     bool receivedId = false;
     bool receivedKey = false;
@@ -22,17 +23,33 @@ bool ClusterAssistant::attemptOnboard () {
     // needs to be big enough to hold a public key plus command/config info
     char nextClusterConfig[ENC_PUB_KEY_SIZE + 24];
     memset(nextClusterConfig, 0, ENC_PUB_KEY_SIZE + 24);
+
+    Serial.println("next cluster config memset done");
+
     while (!receivedId || !receivedKey || !receivedIv || !receivedTrust || !receivedWifi || !receivedFrequency || !receivedTime) {
         // skip newlines and terms
         while (Serial.peek() == '\0' || Serial.peek() == '\r' || Serial.peek() == '\n') {
+            Serial.println("cleaering a byte");
             Serial.read();
         }
 
         // read next line
-        int bytesRead = Serial.readBytesUntil('\n', nextClusterConfig, ENC_PUB_KEY_SIZE + 24);
+        Serial.println("reading until...");
+        int bytesRead = 0;
+        while (Serial.available() > 0 && Serial.peek() != '\n' && bytesRead < ENC_PUB_KEY_SIZE + 24) {
+            nextClusterConfig[bytesRead++] = Serial.read();
+        }
+        //int bytesRead = Serial.readBytesUntil('\n', nextClusterConfig, ENC_PUB_KEY_SIZE + 23);
+        //Serial.println("Read " + String(bytesRead));
+
+        for (int i = 0; i < bytesRead; i++) {
+            Serial.print((char)nextClusterConfig[i]);
+        }
+        Serial.println("");
+
         if (strlen(nextClusterConfig) > 5) {
             ClusterConfigType typeIngested = ingestClusterData(nextClusterConfig, bytesRead, encryptor);
-            Serial.println("Ingested " + String(typeIngested));
+            Serial.print("Ingested: "); Serial.println(typeIngested);
             switch (typeIngested) {
                 case ClusterDeviceId:
                     receivedId = true;
@@ -57,6 +74,8 @@ bool ClusterAssistant::attemptOnboard () {
                     break;
             }
         }
+        delay(1000);
+        Serial.println("Waiting for input...");
     }
 
     return true;
@@ -85,6 +104,13 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
     // if a delimiter was found
     if (dataPosition != -1) {
         const char* clusterData = dataLine + dataPosition;
+
+        Serial.print("cluster data: ");
+        for (int i = dataPosition; i < bytesRead; i++) {
+            Serial.print((dataLine[i]));
+        }
+        Serial.println("");
+
         if (memcmp(dataLine, CLUSTER_CFG_DEVICE, strlen(CLUSTER_CFG_DEVICE)) == 0) {
             // the first 8 digits are the newly assigned id
             // device id setup
@@ -139,10 +165,17 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             memset(wifiConfig, 0, WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN);
             memcpy(wifiConfig, clusterData, bytesRead - dataPosition);
 
-            Serial.println("SSID: " + String(wifiConfig));
+            //Serial.println("SSID: " + String(wifiConfig));
+            Serial.print("ssid: ");
+            for (int i = 0; i < bytesRead - dataPosition; i++) {
+                Serial.print(wifiConfig[i]);
+            }
+            Serial.println("");
 
             encryptor->setTextSlotBuffer(wifiConfig);
             encryptor->saveDataSlot(WIFI_SSID_SLOT);
+
+            Serial.println("ecryptor saved.");            
             return ClusterWifi;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_FREQ, strlen(CLUSTER_CFG_FREQ)) == 0) {
@@ -150,9 +183,8 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             freq[5] = 0;
             memcpy(freq, clusterData, 5);
 
-            Serial.println("Freq: " + String(freq));
-
             encryptor->setTextSlotBuffer(freq);
+            Serial.println("saving from assistant");
             encryptor->saveDataSlot(LORA_FREQUENCY_SLOT);
             return ClusterFrequency;
         }
@@ -160,7 +192,7 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             char sTime[13];
             sTime[12] = 0;
             memcpy(sTime, clusterData, 12);
-            Serial.println("Time: " + String(sTime));
+            //Serial.println("Time: " + String(sTime));
             chatter->getRtc()->setNewDateTime(sTime);
             return ClusterTime;
         }
@@ -199,13 +231,3 @@ void ClusterAssistant::sendPublicKey (Encryptor* encryptor) {
     }
     Serial.println("");
 }
-
-/*
-DEVICE:USCAL000Base_Lora
-TRUST:USCAL00038A1FB9F68FA1CAFA563084CE9C3FB4AE96DA5D024E6A7D987D4206281EBE13CF6FA45ABECB399BA023DFBA9024F435D80DC7B7C162710FF7006A759F35BAF1DBase_Lora
-KEY:FB3886636110818D257E659B555455BCFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-IV:C1994FAABEDE445E8449665BCB32A99FFF
-WIFI:chatter.wifi|m@ttc@lhoun$
-TIME:240213083434
-FREQ:915.0
-*/

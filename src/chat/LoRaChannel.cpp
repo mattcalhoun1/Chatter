@@ -31,6 +31,7 @@ uint8_t LoRaChannel::getSelfAddress () {
 }
 
 uint8_t LoRaChannel::getAddress (const char* otherDeviceId) {
+    Serial.println(otherDeviceId);
     // address is numeric last 3 digits of device id
     char sAddr[4];
     sAddr[0] = otherDeviceId[5];
@@ -38,9 +39,16 @@ uint8_t LoRaChannel::getAddress (const char* otherDeviceId) {
     sAddr[2] = otherDeviceId[7];
     sAddr[3] = '\0';
 
-    return (uint8_t)atoi(sAddr);
+    uint8_t val;
+    uint8_t digits = 3;
+    for (int i = 0; i < digits; i++) {
+        Serial.print(sAddr[i]);
+        val += (sAddr[i] - 48) * pow(10, (digits-1) - i);
+    }
+    Serial.println("");
+    return val;    
 
-  return LORA_ADDR_BROADCAST;
+  //return LORA_ADDR_BROADCAST;
 }
 
 uint8_t LoRaChannel::getLastSender () {
