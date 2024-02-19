@@ -12,10 +12,22 @@ bool Chatter::init () {
 #elif defined(ARDUINO_SAM_DUE)
         hsm = new SparkAteccHsm();
 #endif        
+        trustStore = new SDTrustStore();
+
+        if (!trustStore->init()) {
+            logConsole("TrustStore did not initialize!");
+            return false;
+        }
 
         encryptor = new Encryptor(trustStore, hsm);
 
         if(encryptor->init()) {
+            packetStore = new SDPacketStore(encryptor);
+            if (!packetStore->init()) {
+                logConsole("PacketStore did not initialize!");
+                return false;
+            }
+
             // clear all messages
             packetStore->clearAllMessages();
 
@@ -155,10 +167,10 @@ bool Chatter::validateSignature(bool checkHash) {
     //logConsole("Validating Signature of Message " + String((char*)receiveBuffer.messageId) + " from " + String((char*)receiveBuffer.sender));
 
     // bridge only checks sig, not hash. dont want to decrypt
-    if(checkHash == false || packetStore->hashMatches((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId, encryptor)) {
+    if(checkHash == false || packetStore->hashMatches((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId)) {
         // check signature now
         if (trustStore->loadPublicKey((char*)receiveBuffer.sender, senderPublicKey)) {
-            int packetSize = packetStore->readPacket((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId, CHATTER_SIGNATURE_PACKET_ID, footerBuffer, receiveBuffer.headerLength + CHATTER_HASH_SIZE + CHATTER_SIGNATURE_LENGTH, encryptor);
+            int packetSize = packetStore->readPacket((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId, CHATTER_SIGNATURE_PACKET_ID, footerBuffer, receiveBuffer.headerLength + CHATTER_HASH_SIZE + CHATTER_SIGNATURE_LENGTH);
 
             if (packetSize == receiveBuffer.headerLength + CHATTER_HASH_SIZE + CHATTER_SIGNATURE_LENGTH) {
                 uint8_t* providedSignature = footerBuffer + receiveBuffer.headerLength + CHATTER_HASH_SIZE; // skip the hash to get to the sig
@@ -371,9 +383,6 @@ bool Chatter::retrieveMessage () {
             return false;
         }
         else {
-            // mark as received so we dont process duplicates
-            packetStore->setReceived ((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId, receiveBuffer.packetId);
-
             // in bridge mode, we look at all packets
             if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0) {
                 bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
@@ -411,7 +420,7 @@ bool Chatter::retrieveMessage () {
                     }
 
                     // save the chatter packet
-                    packetStore->savePacket(&receiveBuffer, encryptor);
+                    packetStore->savePacket(&receiveBuffer);
 
                     // for now, assume it's text
                     receiveBufferMessageType = receiveBuffer.encryptionFlag == PacketSigned ? MessageTypeSignature : MessageTypeText;
@@ -422,7 +431,7 @@ bool Chatter::retrieveMessage () {
                         
                         // read the complete message into the buffer.
                         // The header will be there, which contains metadata to check expiry
-                        receiveBuffer.contentLength = packetStore->readMessage((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId, receiveBuffer.content, CHATTER_FULL_MESSAGE_BUFFER_SIZE, encryptor);                    
+                        receiveBuffer.contentLength = packetStore->readMessage((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId, receiveBuffer.content, CHATTER_FULL_MESSAGE_BUFFER_SIZE);                    
                         
                         populateReceiveBufferFlags();
                         bool checkHash = mode != BridgeMode; // in bridge mode (no decryption) we cant check the hash, just the sig
@@ -467,7 +476,7 @@ bool Chatter::retrieveMessage () {
                     receiveBufferMessageType = MessageTypeHeader;
 
                     // save the packet
-                    return packetStore->savePacket(&receiveBuffer, encryptor);
+                    return packetStore->savePacket(&receiveBuffer);
                 }
 
                 logConsole("Received raw looking packet (not saving) of length: " + String(receiveBuffer.contentLength));

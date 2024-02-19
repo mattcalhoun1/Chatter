@@ -1,4 +1,4 @@
-#include "TrustStore.h"
+#include "../TrustStore.h"
 
 #ifndef DUMMYTRUSTSTORE_H
 #define DUMMYTRUSTSTORE_H

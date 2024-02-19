@@ -20,15 +20,18 @@ bool SDPacketStore::init() {
     return running;
 }
 
-bool SDPacketStore::setReceived (const char* senderId, const char* messageId, int packetNum) {
+bool SDPacketStore::setReceived (const char* senderId, const char* messageId, const char* packetId) {
   // make sure sender exists
-  sprintf(packetDirectoryName, "%s%s", receivedDir, senderId);
+  memset(packetDirectoryName,0,64);
+  sprintf(packetDirectoryName, "%s%s/", receivedDir, senderId);
   if (!SD.exists(packetDirectoryName)) {
-    SD.mkdir(packetDirectoryName);
+    if(!SD.mkdir(packetDirectoryName)) {
+        logConsole("Could not create " + String(packetDirectoryName));
+    }
   }
   
 
-  sprintf(packetDirectoryName, "%s%s/%s%03d", receivedDir, senderId, messageId, packetNum);
+  sprintf(packetDirectoryName, "%s%s/%s%s", receivedDir, senderId, messageId, packetId);
   if (!SD.exists(packetDirectoryName)) {
     if(SD.mkdir(packetDirectoryName)) {
       return true;
@@ -78,20 +81,12 @@ int SDPacketStore::readPacket (const char* senderId, const char* messageId, int 
   return readPacket(senderId, messageId, packetNum, buffer, STORAGE_CONTENT_BUFFER_SIZE);
 }
 
-int SDPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, Encryptor* encryptor) {
-  return readPacket(senderId, messageId, packetNum, buffer, STORAGE_CONTENT_BUFFER_SIZE, encryptor);
-}
-
 int SDPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLen) {
-  return readPacket(senderId, messageId, packetNum, buffer, maxLen, nullptr);
-}
-
-int SDPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLen, Encryptor* encryptor) {
-  return readPacket(senderId, messageId, packetNum, buffer, maxLen, encryptor, messageDir);
+  return readPacket(senderId, messageId, packetNum, buffer, maxLen, messageDir);
 }
 
 // assumes the packet exists
-int SDPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLen, Encryptor* encryptor, const char* folder) {
+int SDPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLen, const char* folder) {
     sprintf(packetFileName, "%s%s/%s/%03d", folder, senderId, messageId, packetNum);
 
     int chunkSize = 0;
@@ -131,7 +126,7 @@ int SDPacketStore::readPacket (const char* senderId, const char* messageId, int 
 }
 
 // reads entire message into buffer. does not check signature /etc
-int SDPacketStore::readMessage (const char* senderId, const char* messageId, uint8_t* buffer, int maxLength, Encryptor* encryptor) {
+int SDPacketStore::readMessage (const char* senderId, const char* messageId, uint8_t* buffer, int maxLength) {
   int fullLength = 0;
   int bufferPosition = 0;
   memset(buffer, 0, maxLength);
@@ -140,7 +135,7 @@ int SDPacketStore::readMessage (const char* senderId, const char* messageId, uin
   if (lastPacket > 0) {
     for (int packetNum = lastPacket; packetNum > 0; packetNum--) {
       // Clear the message buffer
-      int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer, encryptor);
+      int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer);
       if (chunkSize > 0) {
         if (bufferPosition + chunkSize + 1 > maxLength) {
           logConsole("Full message too large for buffer. Truncating!");
@@ -169,17 +164,13 @@ int SDPacketStore::readMessage (const char* senderId, const char* messageId, uin
 }
 
 bool SDPacketStore::hashMatches (const char* senderId, const char* messageId) {
-  return hashMatches(senderId, messageId, nullptr);
-}
-
-bool SDPacketStore::hashMatches (const char* senderId, const char* messageId, Encryptor* encryptor) {
   // Calculate a hash of the given message, place hash into a temp buffer
   memset(hashCalcBuffer, 0, STORAGE_HASH_LENGTH); // make sure getting good comparison
-  generateHash(senderId, messageId, hashCalcBuffer, encryptor);
+  generateHash(senderId, messageId, hashCalcBuffer);
   memset(filePacketBuffer, 0, STORAGE_CONTENT_BUFFER_SIZE);
 
   // sig packet is not encrypted
-  int sigPacketSize = readPacket(senderId, messageId, STORAGE_SIGNATURE_PACKET_ID, filePacketBuffer, STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH , encryptor);
+  int sigPacketSize = readPacket(senderId, messageId, STORAGE_SIGNATURE_PACKET_ID, filePacketBuffer, STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH);
 
   if (sigPacketSize == STORAGE_SIG_PACKET_EXPECTED_LENGTH + STORAGE_PACKET_HEADER_LENGTH) {
     // the provided hash (or first 32 of it) is expected to contain a matching hash
@@ -200,10 +191,6 @@ bool SDPacketStore::hashMatches (const char* senderId, const char* messageId, En
 }
 
 int SDPacketStore::generateHash (const char* senderId, const char* messageId, uint8_t* hashBuffer) {
-  return generateHash(senderId, messageId, hashBuffer, nullptr);
-}
-
-int SDPacketStore::generateHash (const char* senderId, const char* messageId, uint8_t* hashBuffer, Encryptor* encryptor) {
   hasher.clear();
   // the packets are in reverse order, highest packet nubmer being beginning fo the message
   // 1 is the very first part of the message, 0 is the footer/sig
@@ -212,7 +199,7 @@ int SDPacketStore::generateHash (const char* senderId, const char* messageId, ui
     for (int packetNum = lastPacket; packetNum > 0; packetNum--) {
       // Read the bytes of the packet into the hasher
       memset(filePacketBuffer, 0, STORAGE_CONTENT_BUFFER_SIZE);
-      int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer, encryptor);
+      int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer);
       if (chunkSize > 0) {
         hasher.update(filePacketBuffer, chunkSize);
       }
@@ -236,10 +223,6 @@ bool SDPacketStore::saveMessageTimestamp (const char* senderId, const char* mess
 }
 
 bool SDPacketStore::savePacket(ChatterPacket* packet) {
-  return savePacket(packet, nullptr);
-}
-
-bool SDPacketStore::savePacket(ChatterPacket* packet, Encryptor* encryptor) {
     if (packet->contentLength <= STORAGE_CONTENT_MAX_UNENCRYPTED_SIZE) {
       // to calculate non-header point of the raw message
       memcpy(senderId, packet->sender, STORAGE_DEVICE_ID_LENGTH + 1);
@@ -247,13 +230,17 @@ bool SDPacketStore::savePacket(ChatterPacket* packet, Encryptor* encryptor) {
       memcpy(packetId, packet->chunkId, STORAGE_CHUNK_ID_LENGTH + 1);
 
 
-        sprintf(packetDirectoryName, "%s%s", messageDir, senderId);
+        memset(packetDirectoryName,0,64);
+        sprintf(packetDirectoryName, "%s%s/", messageDir, senderId);
         if (!SD.exists(packetDirectoryName)) {
-            SD.mkdir(packetDirectoryName);
+            if(!SD.mkdir(packetDirectoryName)) {
+                logConsole("Could not create " + String(packetDirectoryName));
+            }
         }
 
       sprintf(packetFileName, "%s%s/%s/%s", messageDir, senderId, messageId, packetId);
 
+      memset(packetDirectoryName,0,64);
       sprintf(packetDirectoryName, "%s%s/%s/", messageDir, senderId, messageId);
 
       if (isSafeFilename(packetFileName)) {
@@ -277,6 +264,10 @@ bool SDPacketStore::savePacket(ChatterPacket* packet, Encryptor* encryptor) {
         }
         packetFile.flush();
         packetFile.close();
+
+        // mark as received so we dont process duplicates
+        setReceived (senderId, messageId, packetId);
+
         return true;
       }
       else {
@@ -353,7 +344,11 @@ bool SDPacketStore::clearAllMessages () {
   const char* allMessagedirs[] = {messageDir, airOutDir, bridgeOutDir, receivedDir};
   for (int dirCount = 0; dirCount < 4; dirCount++) {
     const char* currMsgDir = allMessagedirs[dirCount];
+    Serial.print("Opening dir: ");
+    Serial.println(currMsgDir);
     File dir = SD.open(currMsgDir);
+    Serial.println("it is open");
+    
     while (true) {
       File sender =  dir.openNextFile();
       if (! sender) {
@@ -649,12 +644,12 @@ bool SDPacketStore::moveMessageToBridgeOut (const char* sender, const char* mess
   return false;
 }
 
-int SDPacketStore::readPacketFromAirOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, Encryptor* encryptor) {
-  return readPacket(senderId, messageId, packetNum, buffer, maxLength, encryptor, airOutDir);
+int SDPacketStore::readPacketFromAirOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) {
+  return readPacket(senderId, messageId, packetNum, buffer, maxLength, airOutDir);
 }
 
-int SDPacketStore::readPacketFromBridgeOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, Encryptor* encryptor) {
-  return readPacket(senderId, messageId, packetNum, buffer, maxLength, encryptor, bridgeOutDir);
+int SDPacketStore::readPacketFromBridgeOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) {
+  return readPacket(senderId, messageId, packetNum, buffer, maxLength, bridgeOutDir);
 }
 
 bool SDPacketStore::clearPacketFromAirOut (const char* senderId, const char* messageId, int packetNum) {

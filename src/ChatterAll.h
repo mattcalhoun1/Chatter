@@ -13,9 +13,6 @@
 #include "storage/PacketStore.h"
 #include "storage/TrustStore.h"
 
-#include "storage/SDPacketStore.h"
-#include "storage/SDTrustStore.h"
-
 #include "rtc/R4RtClock.h"
 #include "rtc/RTClockBase.h"
 #include "rtc/ZeroRtClock.h"

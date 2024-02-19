@@ -17,6 +17,9 @@
 #include "ChatterPacket.h"
 #include "../storage/PacketStore.h"
 #include "../storage/TrustStore.h"
+#include "../storage/sd/SDPacketStore.h"
+#include "../storage/sd/SDTrustStore.h"
+
 #include "../rtc/RTClockBase.h"
 
 #ifndef CHATTER_H
@@ -38,7 +41,7 @@ enum ChatterDeviceType {
 
 class Chatter : ChatStatusCallback {
   public:
-    Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, PacketStore* _packetStore, TrustStore* _trustStore, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, packetStore = _packetStore; trustStore =_trustStore; rtc = _rtc, statusCallback = _statusCallback; }
+    Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, rtc = _rtc, statusCallback = _statusCallback; }
     bool init ();
     ChatterDeviceType getDeviceType() { return deviceType; }
 
@@ -100,6 +103,7 @@ class Chatter : ChatStatusCallback {
 
     Encryptor* getEncryptor() {return encryptor;}
     TrustStore* getTrustStore() {return trustStore;}
+    PacketStore* getPacketStore() {return packetStore;}
     RTClockBase* getRtc() {return rtc;}
 
   private:

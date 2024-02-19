@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #include <List.hpp>
-#include "StorageGlobals.h"
+#include "../StorageGlobals.h"
 #include <SD.h>
-#include "StorageBase.h"
-#include "TrustStore.h"
+#include "../StorageBase.h"
+#include "../TrustStore.h"
 
 #ifndef SDTRUSTSTORE_H
 #define SDTRUSTSTORE_H
