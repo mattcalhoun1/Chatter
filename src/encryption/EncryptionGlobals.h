@@ -21,7 +21,9 @@
 #define ENC_HEX_BUFFER_SIZE 129 // was 129
 #define ENC_MSG_BUFFER_SIZE 32 // only 32 byte messages are allowed for sig
 #define ENC_SIG_BUFFER_SIZE 64
-#define ENC_PUB_KEY_SIZE 128
+#define ENC_PUB_KEY_SIZE 40
+#define ENC_PRIV_KEY_SIZE 21
+#define ENC_HASH_SIZE 32 // sha256 generates 32 bytes
 
 #define ENC_UNENCRYPTED_BUFFER_SIZE 150 // really only need closer to 128, but extra since encryption/decryption can change size
 #define ENC_ENCRYPTED_BUFFER_SIZE 150

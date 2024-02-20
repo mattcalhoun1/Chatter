@@ -16,7 +16,9 @@
 // slots reserved for cluster root, bridges, etc
 #define FRAM_RESERVED_TRUST_SLOTS 4
 
-#define STORAGE_PUBLIC_KEY_LENGTH 128 // 
+#define STORAGE_PUBLIC_KEY_LENGTH 40 // 
+#define STORAGE_PRIVATE_KEY_LENGTH 21 // 
+
 #define STORAGE_HASH_BUFFER_SIZE 150
 #define STORAGE_HASH_LENGTH 32 //sha256
 #define STORAGE_PACKET_HEADER_LENGTH 23

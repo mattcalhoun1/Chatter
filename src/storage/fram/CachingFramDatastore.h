@@ -9,6 +9,7 @@
 class CachingFramDatastore : public FramData {
   public:
     CachingFramDatastore (const uint8_t* _key, const uint8_t* _volatileKey) : FramData (_key, _volatileKey) {}
+    CachingFramDatastore (const char* _passphrase, uint8_t _length) : FramData (_passphrase, _length) {}
     bool init ();
 
     uint8_t getNumUsedSlots (FramZone zone);

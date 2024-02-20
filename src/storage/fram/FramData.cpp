@@ -6,6 +6,35 @@ FramData::FramData (const uint8_t* _key, const uint8_t* _volatileKey) {
   memcpy(iv, _key+ENC_SYMMETRIC_KEY_SIZE, ENC_IV_SIZE);
 }
 
+FramData::FramData(const char* _passphrase, uint8_t _length) {
+    // in this case, we generate our own key using the given passphrase
+    uint8_t hashOfPassphrase[32];
+    memset(hashOfPassphrase, 0, 32);
+
+    SHA256 hasher;
+    hasher.clear();
+    hasher.update(_passphrase, _length);
+    hasher.finalize(hashOfPassphrase, hasher.hashSize());
+
+    // first 16 go to key
+    chacha.setKey(hashOfPassphrase, ENC_SYMMETRIC_KEY_SIZE);
+
+    // next 8 go to iv
+    memcpy(iv, hashOfPassphrase+ENC_SYMMETRIC_KEY_SIZE, ENC_IV_SIZE);
+
+    // now generate volatile key
+    uint8_t volKey[ENC_SYMMETRIC_KEY_SIZE];
+
+    for (uint8_t i = 0; i < ENC_SYMMETRIC_KEY_SIZE; i++) {
+        randomSeed(millis());
+        volKey[i] = random(255);
+        delay(10); // sleep for a hopefully somewhat unpredictable amount of time
+    }
+    chachaVolatile.setKey(volKey, ENC_SYMMETRIC_KEY_SIZE);
+
+}
+
+
 bool FramData::init() {
   running = fram.begin();//0x50);
 

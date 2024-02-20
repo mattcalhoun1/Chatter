@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "FramRecord.h"
 #include "ChaCha.h"
+#include <SHA256.h>
 #include "Adafruit_FRAM_I2C.h"
 #include "Adafruit_EEPROM_I2C.h"
 
@@ -15,12 +16,12 @@
 #define FRAM_ZONE_METADATA_SIZE 4 // 4 bytes, 0 = num slots used, 1 = newest slot, 2 = reserved, 3 = reserved
 
 #define FRAM_DEVICE_LOC 0x00
-#define FRAM_DEVICE_KEYSIZE 8
-#define FRAM_DEVICE_DATASIZE_USABLE 16 // how much cleartext to allow in. encryption will bump the size on fram
-#define FRAM_DEVICE_DATASIZE 16 + 16 // only storing 16 bytes, but double to allow for growth from encryption
+#define FRAM_DEVICE_KEYSIZE 16
+#define FRAM_DEVICE_DATASIZE_USABLE 32 // how much cleartext to allow in. encryption will bump the size on fram
+#define FRAM_DEVICE_DATASIZE 32 + 32 // only storing 16 bytes, but double to allow for growth from encryption
 #define FRAM_DEVICE_ENCRYPTED false
 #define FRAM_DEVICE_VOLATILE false
-#define FRAM_DEVICE_SLOTS 5
+#define FRAM_DEVICE_SLOTS 10
 
 #define FRAM_CLUSTER_LOC (FRAM_DEVICE_KEYSIZE + FRAM_DEVICE_DATASIZE) * FRAM_DEVICE_SLOTS + FRAM_ZONE_METADATA_SIZE
 #define FRAM_CLUSTER_KEYSIZE STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1 // ex: USABCA for cluster USABC, active status
@@ -66,6 +67,7 @@
 class FramData {
   public:
     FramData (const uint8_t* _key, const uint8_t* _volatileKey);
+    FramData (const char* _passphrase, uint8_t _length);
     virtual bool init ();
 
     virtual uint8_t getNumUsedSlots (FramZone zone);

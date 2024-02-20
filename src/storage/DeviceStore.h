@@ -9,7 +9,6 @@ class DeviceStore : public StorageBase {
     public:
         virtual bool init () = 0;
 
-        virtual bool loadDeviceSetupTs (char* buffer) = 0;
         virtual bool loadDeviceName (char* buffer) = 0;
         virtual bool getDefaultClusterId (char* buffer) = 0;
         virtual bool loadSigningKey (uint8_t* buffer) = 0;

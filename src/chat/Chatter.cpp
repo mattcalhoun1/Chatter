@@ -2,99 +2,82 @@
 #include <List.hpp>
 
 bool Chatter::init () {
+    readHardwareDeviceId();
+    
     running = false;
     if (mode == BridgeMode || mode == BasicMode) {
+        logConsole("Creating caching fram datastore");
+        fram = new CachingFramDatastore(uniqueDeviceId, uniqueDeviceIdSize);
 
-#if defined(ARDUINO_UNOR4_WIFI)
-        hsm = new ArdAteccHsm();
-#elif defined(ARDUINO_SAMD_NANO_33_IOT)
-        hsm = new ArdAteccHsm();
-#elif defined(ARDUINO_SAM_DUE)
-        hsm = new SparkAteccHsm();
-#endif        
-        trustStore = new SDTrustStore();
-
-        if (!trustStore->init()) {
-            logConsole("TrustStore did not initialize!");
-            return false;
-        }
-
-        encryptor = new Encryptor(trustStore, hsm);
-
-        if(encryptor->init()) {
-            encryptor->loadPublicKey(0);
-            logConsole("Encryption module connected");
-
-            if (packetStorageType == StorageSD) {
-                packetStore = new SDPacketStore(encryptor);
-            }
-            else {
-                logConsole("Creating caching fram datastore");
-                fram = new CachingFramDatastore(encryptor->getPublicKeyBuffer(), encryptor->getVolatileEncryptionKey());
-                logConsole("Created datastore, callingn init");
-                if (fram->init()) {
-                    logConsole("Fram initialized");
+        if (fram->init()) {
+            deviceStore = new FramDeviceStore(fram);
+            clusterStore = new FramClusterStore(fram);
+            if(deviceStoreInitialized () && clusterStoreInitialized()) {
+                hsm = new PseudoHsm(deviceStore);
+                if (!hsm->init(clusterId)){
+                    logConsole("Unable to initialize hsm");
                 }
-                else {
-                    logConsole("Fram not initialized");
+
+                trustStore = new FramTrustStore(fram);
+                if (!trustStore->init()) {
+                    logConsole("TrustStore did not initialize!");
                     return false;
                 }
-                packetStore = new FramPacketStore(fram, rtc);
+
+                encryptor = new Encryptor(trustStore, hsm);
+
+                if(encryptor->init()) {
+                    encryptor->loadPublicKey(0);
+                    logConsole("Encryption module connected");
+                    packetStore = new FramPacketStore(fram, rtc);
+                    if (!packetStore->init()) {
+                        logConsole("PacketStore did not initialize!");
+                        return false;
+                    }
+
+                    // clear all messages
+                    packetStore->clearAllMessages();
+
+                    // use the sender public key buffer for this, since there's no sending going on yet
+                    loraFrequency = clusterStore->getFrequency(clusterId);
+                    if (loraFrequency < 868.0 || loraFrequency > 960.0) {
+                        logConsole("Lora frequency out of range, using default");
+                        loraFrequency = LORA_DEFAULT_FREQUENCY;
+                    }
+                    logConsole("Lora frequency: " + String(loraFrequency));
+
+                    // initialize statuses to no device
+                    for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
+                        status[d] = ChatNoDevice;
+                    }
+                    
+                    logConsole("Device ID: " + String(deviceId));
+
+                    logConsole("Known Devices: ");
+                    List<String> others = trustStore->getDeviceIds();
+                    char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
+                    for (int i = 0; i < others.getSize(); i++) {
+                        const String& otherDeviceStr = others[i];
+                        // try loading public key for that
+                        const char* otherDeviceId = otherDeviceStr.c_str();
+                        trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
+                        trustStore->loadPublicKey(otherDeviceId, (char*)encryptor->getPublicKeyBuffer());
+                        logConsole("Device: " + String(otherDeviceId) + ", Alias: " + String(otherDeviceAlias));
+                    }
+
+                    running = true;
+                }
+                else {
+                    logConsole("Chatter did not initialize. Encryption chip error?");
+                }
             }
-            if (!packetStore->init()) {
-                logConsole("PacketStore did not initialize!");
-                return false;
+            else {
+                // need onboarding/etc
+                logConsole("Device not yet initialized.");
             }
-
-            // clear all messages
-            packetStore->clearAllMessages();
-
-            const char* did = encryptor->getDeviceId();
-            memcpy(deviceId, did, CHATTER_DEVICE_ID_SIZE);
-            deviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
-
-            // preload encryption key
-            //encryptor->loadEncryptionKey(ENCRYPTION_KEY_SLOT);
-
-            // wifi ssid/pw occupies its own slot
-            encryptor->loadDataSlot(WIFI_SSID_SLOT);
-            encryptor->getTextSlotBuffer(ssid);
-
-            // use the sender public key buffer for this, since there's no sending going on yet
-            encryptor->loadDataSlot(LORA_FREQUENCY_SLOT);
-            encryptor->getTextSlotBuffer(senderPublicKey);
-            char* frequencyEnd = senderPublicKey+5;
-            loraFrequency = strtof(senderPublicKey, &frequencyEnd);
-            if (loraFrequency < 868.0 || loraFrequency > 960.0) {
-                logConsole("Lora frequency out of range, using default");
-                loraFrequency = LORA_DEFAULT_FREQUENCY;
-            }
-            logConsole("Lora frequency: " + String(loraFrequency));
-
-            // initialize statuses to no device
-            for (int d = 0; d < CHAT_MAX_CHANNELS; d++) {
-                status[d] = ChatNoDevice;
-            }
-
-            
-            logConsole("Device ID: " + String(deviceId));
-
-            logConsole("Known Devices: ");
-            List<String> others = trustStore->getDeviceIds();
-            char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
-            for (int i = 0; i < others.getSize(); i++) {
-                const String& otherDeviceStr = others[i];
-                // try loading public key for that
-                const char* otherDeviceId = otherDeviceStr.c_str();
-                trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
-                trustStore->loadPublicKey(otherDeviceId, (char*)encryptor->getPublicKeyBuffer());
-                logConsole("Device: " + String(otherDeviceId) + ", Alias: " + String(otherDeviceAlias));
-            }
-
-            running = true;
         }
         else {
-            logConsole("Chatter did not initialize. Encryption chip error?");
+            logConsole("Fram not initialized");
         }
     }
     else {
@@ -847,4 +830,44 @@ void Chatter::logConsole(String msg) {
   if (CHAT_LOG_ENABLED) {
     Serial.println(msg);
   }
+}
+
+bool Chatter::readHardwareDeviceId () {
+    memset(uniqueDeviceId, 0, 32);
+    uniqueDeviceIdSize = min(31, UniqueIDsize);
+    memcpy(uniqueDeviceId, UniqueID, uniqueDeviceIdSize);
+    logConsole("Device ID Read: ");
+    logConsole(uniqueDeviceId);
+    return true;
+}
+
+bool Chatter::clusterStoreInitialized () {
+    if (clusterStore->init()) {
+        if (clusterStore->loadDefaultCluserId(clusterId)) {
+            logConsole("Default cluster id set to: ");
+            logConsole(clusterId);
+            return true;
+        }
+        else {
+            logConsole("Default cluster not set yet");
+        }
+    }
+    else {
+        logConsole("Cluster store not initialized");
+    }
+    return false;
+}
+
+bool Chatter::deviceStoreInitialized () {
+    if (deviceStore->init()) {
+        // check if we already have a device id
+        if (deviceStore->loadDeviceName (deviceId)) {
+            logConsole("Fram already initialized");
+            return true;
+        }
+    }
+    else {
+        logConsole("device store init failed.");
+    }
+    return false;
 }

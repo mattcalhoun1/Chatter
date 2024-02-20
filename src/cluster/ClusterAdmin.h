@@ -2,6 +2,9 @@
 #include "../chat/ChatGlobals.h"
 #include "ClusterManagerBase.h"
 #include <List.hpp>
+#include "../storage/TrustStore.h"
+#include "../storage/DeviceStore.h"
+#include "../storage/ClusterStore.h"
 
 #ifndef CHATTERADMIN_H
 #define CHATTERADMIN_H

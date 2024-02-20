@@ -10,19 +10,21 @@
 #include "UARTChannel.h"
 #include "../encryption/Encryptor.h"
 //#include "../encryption/ChaChaEncryptor.h"
-#include "../encryption/ArdAteccHsm.h"
-#include "../encryption/SparkAteccHsm.h"
 #include "../encryption/Hsm.h"
 #include "ChatStatusCallback.h"
 #include "ChatterPacket.h"
 #include "../storage/PacketStore.h"
 #include "../storage/TrustStore.h"
-#include "../storage/sd/SDPacketStore.h"
-#include "../storage/sd/SDTrustStore.h"
+#include "../storage/ClusterStore.h"
+#include "../storage/fram/FramTrustStore.h"
+#include "../storage/DeviceStore.h"
+#include "../storage/fram/FramDeviceStore.h"
+#include "../storage/fram/FramClusterStore.h"
 #include "../storage/fram/FramPacketStore.h"
 #include "../storage/fram/CachingFramDatastore.h"
 
 #include "../rtc/RTClockBase.h"
+#include <ArduinoUniqueID.h>
 
 #ifndef CHATTER_H
 #define CHATTER_H
@@ -111,7 +113,10 @@ class Chatter : ChatStatusCallback {
     Encryptor* getEncryptor() {return encryptor;}
     TrustStore* getTrustStore() {return trustStore;}
     PacketStore* getPacketStore() {return packetStore;}
+    DeviceStore* getDeviceStore() {return deviceStore;}
+    ClusterStore* getClusterStore() {return clusterStore;}
     RTClockBase* getRtc() {return rtc;}
+    Hsm* getHsm () {return hsm;}
 
   private:
     ChatterDeviceType deviceType;
@@ -144,11 +149,15 @@ class Chatter : ChatStatusCallback {
     ChatterChannel* channels[2];
     PacketStore* packetStore;
     TrustStore* trustStore;
+    DeviceStore* deviceStore;
+    ClusterStore* clusterStore;
     Encryptor* encryptor;
     RTClockBase* rtc;
 
     char deviceId[CHATTER_DEVICE_ID_SIZE+1];
-    char ssid[WIFI_SSID_MAX_LEN + WIFI_PASSWORD_MAX_LEN + 2]; // +2 for delimiter and terminator
+    char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1]; 
+    char wifiSsid[WIFI_SSID_MAX_LEN + 1];
+    char wifiCred[WIFI_PASSWORD_MAX_LEN + 1];
     float loraFrequency;
 
     void logConsole(String msg);
@@ -173,6 +182,11 @@ class Chatter : ChatStatusCallback {
     StorageType packetStorageType;
 
     FramData* fram; // only set if one of the data storage selections is fram
+
+    char uniqueDeviceId[32]; // may be up to 32 chars
+    uint8_t uniqueDeviceIdSize;
+    bool readHardwareDeviceId ();
+    bool deviceStoreInitialized ();
 };
 
 #endif

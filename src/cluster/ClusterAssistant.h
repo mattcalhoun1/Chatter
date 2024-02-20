@@ -1,6 +1,11 @@
 #include "../chat/ChatGlobals.h"
 #include "ClusterManagerBase.h"
 #include "../chat/Chatter.h"
+#include "../storage/TrustStore.h"
+#include "../storage/DeviceStore.h"
+#include "../storage/ClusterStore.h"
+#include "../encryption/Hsm.h"
+
 
 #ifndef CLUSTERASSISTANT_H
 #define CLUSTERASSISTANT_H
@@ -23,8 +28,17 @@ class ClusterAssistant : public ClusterManagerBase {
 
     protected:
         void sendOnboardRequest();
-        void sendPublicKey(Encryptor* encryptor);
-        ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, Encryptor* encryptor);
+        void sendPublicKey(Hsm* hsm);
+        ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, ClusterStore* clusterStore);
+
+        char newDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
+        char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1];
+
+        char trustedDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
+        char alias[CHATTER_ALIAS_NAME_SIZE + 1];
+        char trustedDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
+        char hexEncodedPubKey[ENC_PUB_KEY_SIZE * 2 + 1];
+
 };
 
 #endif

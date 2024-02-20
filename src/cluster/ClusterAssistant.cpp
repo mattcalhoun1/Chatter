@@ -2,14 +2,18 @@
 
 bool ClusterAssistant::attemptOnboard () {
     // wait for serial buffer write capability
-    Encryptor* encryptor = chatter->getEncryptor();
+    //Encryptor* encryptor = chatter->getEncryptor();
+    ClusterStore* clusterStore = chatter->getClusterStore();
+    DeviceStore* deviceStore = chatter->getDeviceStore();
+    Hsm* hsm = chatter->getHsm();
+    ClusterConfig newClusterConfig;
 
     // clear our own truststore before proceeding
     chatter->getTrustStore()->clearTruststore();
     bool success = false;
 
     sendOnboardRequest();
-    sendPublicKey(encryptor);
+    sendPublicKey(hsm);
     Serial.println("end pub key");
 
     bool receivedId = false;
@@ -48,7 +52,7 @@ bool ClusterAssistant::attemptOnboard () {
         Serial.println("");
 
         if (strlen(nextClusterConfig) > 5) {
-            ClusterConfigType typeIngested = ingestClusterData(nextClusterConfig, bytesRead, encryptor);
+            ClusterConfigType typeIngested = ingestClusterData(nextClusterConfig, bytesRead, &newClusterConfig);
             Serial.print("Ingested: "); Serial.println(typeIngested);
             switch (typeIngested) {
                 case ClusterDeviceId:
@@ -81,7 +85,7 @@ bool ClusterAssistant::attemptOnboard () {
     return true;
 }
 
-ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int bytesRead, Encryptor* encryptor) {
+ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int bytesRead, ClusterConfig* newClusterConfig) {
 
 /*
 #define CLUSTER_CFG_TRUST "TRUST"
@@ -114,11 +118,12 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
         if (memcmp(dataLine, CLUSTER_CFG_DEVICE, strlen(CLUSTER_CFG_DEVICE)) == 0) {
             // the first 8 digits are the newly assigned id
             // device id setup
-            char newDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
             memcpy(newDeviceId, clusterData, CHATTER_DEVICE_ID_SIZE);
             newDeviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
-            encryptor->setTextSlotBuffer(newDeviceId);
-            encryptor->saveDataSlot(DEVICE_ID_SLOT);
+            
+            memcpy(clusterId, clusterData, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+            clusterData[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1] = 0;
+            
             return ClusterDeviceId;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_TRUST, strlen(CLUSTER_CFG_TRUST)) == 0) {
@@ -127,15 +132,14 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             memcpy(trustedDeviceId, clusterData, CHATTER_DEVICE_ID_SIZE);
             trustedDeviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
 
-            // next 128 are the public key
-            memcpy(encryptor->getPublicKeyBuffer(), clusterData + CHATTER_DEVICE_ID_SIZE, ENC_PUB_KEY_SIZE);
+            //!!! hex encoded id is probably bigger than enc pub key by 2x
+            memcpy(hexEncodedPubKey, clusterData + CHATTER_DEVICE_ID_SIZE, ENC_PUB_KEY_SIZE * 2);
 
             // the rest of the buffer is alias
             char alias[CHATTER_ALIAS_NAME_SIZE + 1];
             memset(alias, 0, CHATTER_ALIAS_NAME_SIZE+1);
-            memcpy(alias, clusterData + CHATTER_DEVICE_ID_SIZE + ENC_PUB_KEY_SIZE, bytesRead - (dataPosition + CHATTER_DEVICE_ID_SIZE + ENC_PUB_KEY_SIZE));
+            memcpy(alias, clusterData + CHATTER_DEVICE_ID_SIZE + ENC_PUB_KEY_SIZE, bytesRead - (dataPosition + CHATTER_DEVICE_ID_SIZE + (ENC_PUB_KEY_SIZE*2)));
 
-            chatter->getTrustStore()->addTrustedDevice(trustedDeviceId, alias, (char*)encryptor->getPublicKeyBuffer());
             return ClusterTrustStore;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_KEY, strlen(CLUSTER_CFG_KEY)) == 0) {
@@ -221,9 +225,10 @@ void ClusterAssistant::sendOnboardRequest () {
     Serial.flush();
 }
 
-void ClusterAssistant::sendPublicKey (Encryptor* encryptor) {
-    encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
-    encryptor->hexify(encryptor->getPublicKeyBuffer(), ENC_PUB_KEY_SIZE);
+void ClusterAssistant::sendPublicKey (Hsm* hsm) {
+    uint8_t pubkey[ENC_PUB_KEY_SIZE];
+    hsm->loadPublicKey(pubkey);
+    encryptor->hexify(pubkey, ENC_PUB_KEY_SIZE);
     const char* hexifiedPubKey = encryptor->getHexBuffer();
 
     for (int hexCount = 0; hexCount < ENC_PUB_KEY_SIZE; hexCount++) {
