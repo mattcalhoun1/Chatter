@@ -49,7 +49,7 @@ void ClusterConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBu
   memcpy(wifi, bufferPos, CHATTER_WIFI_STRING_MAX_SIZE);
 }
 
-void ClusterConfig::serialize (uint8_t* dataBuffer) {
+int ClusterConfig::serialize (uint8_t* dataBuffer) {
   // data buffer is in the following order (total of 74 bytes)
   uint8_t* bufferPos = dataBuffer;
   memcpy(bufferPos, frequency, CHATTER_LORA_FREQUENCY_DIGITS);
@@ -65,6 +65,10 @@ void ClusterConfig::serialize (uint8_t* dataBuffer) {
   bufferPos += CHATTER_ALIAS_NAME_SIZE;
 
   memcpy(bufferPos, wifi, CHATTER_WIFI_STRING_MAX_SIZE);
+
+  // length is always the same
+  return FRAM_CLUSTER_DATASIZE;
+
 }
 
 void ClusterConfig::serializeKey (uint8_t* keyBuffer) {

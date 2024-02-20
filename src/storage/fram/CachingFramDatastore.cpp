@@ -34,8 +34,8 @@ uint8_t CachingFramDatastore::getNextSlot (FramZone zone) {
 
 bool CachingFramDatastore::clearZone (FramZone zone) {
   FramData::clearZone(zone);
-  slotsUsedCache[zone] = FRAM_NULL;
-  latestSlotIdCache[zone] = FRAM_NULL;
+  slotsUsedCache[zone] = 0;
+  latestSlotIdCache[zone] = zoneSlots[zone] - 1;
 }
 
 void CachingFramDatastore::readKey(uint8_t* buffer, FramZone zone, uint8_t slot) {

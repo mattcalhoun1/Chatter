@@ -3,13 +3,16 @@
 #include "../StorageGlobals.h"
 #include "../PacketStore.h"
 #include "FramData.h"
+#include "FramGlobals.h"
+#include "PacketData.h"
+#include "../../rtc/RTClockBase.h"
 
 #ifndef FRAMPACKETSTORE_H
 #define FRAMPACKETSTORE_H
 
 class FramPacketStore : public PacketStore {
     public:
-        FramPacketStore(FramData* _datastore) { datastore = _datastore; }
+        FramPacketStore(FramData* _datastore, RTClockBase* _rtc) { datastore = _datastore; rtc = _rtc; }
         bool init ();
 
         bool wasReceived (const char* senderId, const char* messageId, int packetNum);
@@ -21,12 +24,10 @@ class FramPacketStore : public PacketStore {
         bool clearMessage (const char* sender, const char* messageId);
         bool clearAllMessages ();
 
-        int generateHash (const char* senderId, const char* messageId, uint8_t* hashBuffer);
-
         int getNumPackets (const char* senderId, const char* messageId);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength);
-        int readMessage (const char* senderId, const char* messageId, uint8_t* buffer, int maxLength);
+        int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, PacketStatus status);
 
         // bridging-related functions
         bool moveMessageToAirOut (const char* sender, const char* messageId);
@@ -44,12 +45,20 @@ class FramPacketStore : public PacketStore {
 
         /// end bridging related functions
 
-        bool hashMatches (const char* senderId, const char* messageId);
-
     protected:
+        void populateKeyBuffer (const char* senderId, const char* messageId, int packetNum, PacketStatus status);
         FramData* datastore;
+        RTClockBase* rtc;
+        uint8_t keyBuffer[FRAM_PACKET_KEYSIZE];
+        char tsBuffer[12];
+        PacketData packetBuffer;
 
+        bool readOldestPacketDetails (PacketStatus status, ChatterPacketMetaData* packetDetailsBuffer);
 
+        int getNumPackets (const char* senderId, const char* messageId, PacketStatus status);
+        bool saveMessageTimetamp(const char* senderId, const char* messageId, const char* sortableTime, PacketStatus status);
+        bool saveMessageStatus (const char* senderId, const char* messageId, PacketStatus oldStatus, PacketStatus newStatus);
+        bool savePacketStatus (const char* senderId, const char* messageId, int packetNum, PacketStatus oldStatus, PacketStatus newStatus);        
 };
 
 #endif

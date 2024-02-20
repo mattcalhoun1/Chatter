@@ -187,6 +187,11 @@ long LoRaTrans::retrieveMessage() {
       buf[len] = 0; // terminate
       logConsole("LoRa: Received and acknowledged message size: " + String(len) + " from: " + String(from));
 
+      /*for (int i = 0; i < len; i++) {
+        Serial.print((char)buf[i]);
+      }
+      Serial.println("");*/
+
       this->lastSender = from;
       messageBufferTime = millis();
       lastMessageSize = len;

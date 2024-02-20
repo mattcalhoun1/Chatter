@@ -1,6 +1,5 @@
 #include "../PacketStore.h"
 #include <SD.h>
-#include <SHA256.h>
 #include "../../encryption/Encryptor.h"
 
 #ifndef SDPACKETSTORE_H
@@ -20,12 +19,9 @@ class SDPacketStore : public PacketStore {
         bool clearMessage (const char* sender, const char* messageId);
         bool clearAllMessages ();
 
-        int generateHash (const char* senderId, const char* messageId, uint8_t* hashBuffer);
-
         int getNumPackets (const char* senderId, const char* messageId);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength);
-        int readMessage (const char* senderId, const char* messageId, uint8_t* buffer, int maxLength);
 
         // bridging-related functions
         bool moveMessageToAirOut (const char* sender, const char* messageId);
@@ -41,9 +37,6 @@ class SDPacketStore : public PacketStore {
 
         int pruneAgedMessages (const char* oldestDatetime); // delete any bridge-related messages that have expired
 
-        /// end bridging related functions
-
-        bool hashMatches (const char* senderId, const char* messageId);
     private:
         bool setReceived (const char* senderId, const char* messageId, const char* packetId);
         bool saveMessageTimestamp (const char* senderId, const char* messageId, const char* sortableTime);
@@ -65,10 +58,6 @@ class SDPacketStore : public PacketStore {
         const char* bridgeOutDir = "/BOUT/";
         const char* airOutDir = "/AOUT/";
         const char* receivedDir = "/RCVD/";
-
-        SHA256 hasher;
-        uint8_t filePacketBuffer[STORAGE_CONTENT_BUFFER_SIZE]; // use this buffer to read footer
-        uint8_t hashCalcBuffer[STORAGE_HASH_LENGTH]; // buffer for when this class calcs hash    
 
         char packetFileName[STORAGE_MAX_FILENAME_LENGTH]; // reusable so we don't keep recreating on the stack
         char packetDirectoryName[STORAGE_MAX_FILENAME_LENGTH];

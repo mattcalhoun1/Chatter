@@ -25,12 +25,15 @@ void TrustConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBuff
   memcpy(alias, bufferPos, CHATTER_ALIAS_NAME_SIZE);
 }
 
-void TrustConfig::serialize (uint8_t* dataBuffer) {
+int TrustConfig::serialize (uint8_t* dataBuffer) {
   uint8_t* bufferPos = dataBuffer;
   memcpy(bufferPos, publicKey, ENC_PUB_KEY_SIZE);
   bufferPos += ENC_PUB_KEY_SIZE;
 
   memcpy(bufferPos, alias, CHATTER_ALIAS_NAME_SIZE);
+
+  // length is always the same
+  return FRAM_TRUST_DATASIZE;
 }
 
 void TrustConfig::serializeKey (uint8_t* keyBuffer) {

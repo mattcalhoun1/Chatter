@@ -74,6 +74,8 @@ class Encryptor {
     void hexify (const byte input[], int inputLength);
     const char* getHexBuffer ();
 
+    uint8_t* getVolatileEncryptionKey () {return volatileEncryptionKey;}
+
   protected:
     Hsm* hsm;
     EncryptionAlgo* algo;

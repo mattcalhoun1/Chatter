@@ -19,6 +19,8 @@
 #include "../storage/TrustStore.h"
 #include "../storage/sd/SDPacketStore.h"
 #include "../storage/sd/SDTrustStore.h"
+#include "../storage/fram/FramPacketStore.h"
+#include "../storage/fram/CachingFramDatastore.h"
 
 #include "../rtc/RTClockBase.h"
 
@@ -28,6 +30,11 @@
 enum ChatterMode {
   BasicMode = 0,
   BridgeMode = 1
+};
+
+enum StorageType {
+    StorageSD = 0,
+    StorageFram = 1
 };
 
 enum ChatterDeviceType {
@@ -41,7 +48,7 @@ enum ChatterDeviceType {
 
 class Chatter : ChatStatusCallback {
   public:
-    Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, RTClockBase* _rtc, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, rtc = _rtc, statusCallback = _statusCallback; }
+    Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, RTClockBase* _rtc, StorageType _packetStorageType, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, rtc = _rtc, packetStorageType = _packetStorageType, statusCallback = _statusCallback; }
     bool init ();
     ChatterDeviceType getDeviceType() { return deviceType; }
 
@@ -163,7 +170,9 @@ class Chatter : ChatStatusCallback {
     unsigned long selfAnnounceFrequency = 10000; // every n millis, announce self across all channels
     unsigned long lastAnnounce = 0;
     int defaultChannel = 0; // wifi or lora ... NOT can
+    StorageType packetStorageType;
 
+    FramData* fram; // only set if one of the data storage selections is fram
 };
 
 #endif

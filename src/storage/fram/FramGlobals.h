@@ -35,7 +35,6 @@
 #define FRAM_ZONE_TRUST 1
 #define FRAM_ZONE_PACKET 2
 
-
 enum FramZone {
   ZoneCluster = FRAM_ZONE_CLUSTER,
   ZoneTrust = FRAM_ZONE_TRUST,

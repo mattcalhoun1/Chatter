@@ -1,8 +1,9 @@
-#include "Globals.h"
+#include "FramGlobals.h"
 #include <Arduino.h>
 #include "FramRecord.h"
 #include "ChaCha.h"
 #include "Adafruit_FRAM_I2C.h"
+#include "Adafruit_EEPROM_I2C.h"
 
 #ifndef FRAMDATA_H
 #define FRAMDATA_H
@@ -35,18 +36,18 @@
 // so far, used 4248 bytes of fram. the number of slots we have left for packets depends on how much
 // fram is on the chip. 
 // 32k chip = 32768 bytes - 4248 == 28520
-// each packet uses 26 bytes for the key (8 + 3 + 3 + 12), and we have 4 bytes at the zone front for metadata
-//    and 174 for the encrypted payload
-//    for a total of 200 bytes per packet
-//    or 142.6 packets.
+// each packet uses 15 bytes for the key (8 + 3 + 3 + 1), and we have 4 bytes at the zone front for metadata
+//    and 171 for the encrypted payload
+//    for a total of 186 bytes per packet
+//    or 153 packets. To be save, we'll keep this at 120 packets, and should have empty area at the end of fram
 
 
 #define FRAM_PACKET_LOC (FRAM_TRUST_KEYSIZE + FRAM_TRUST_DATASIZE) * FRAM_TRUST_SLOTS + FRAM_ZONE_METADATA_SIZE // 4248 
 #define FRAM_PACKET_KEYSIZE CHATTER_DEVICE_ID_SIZE + CHATTER_MESSAGE_ID_SIZE + CHATTER_CHUNK_ID_SIZE + 1 // +1 for packet status
-#define FRAM_PACKET_DATASIZE CHATTER_FULL_BUFFER_LEN + FRAM_TS_SIZE + 1 // 1 for the packet length
-#define FRAM_PACKET_ENCRYPTED true
+#define FRAM_PACKET_DATASIZE CHATTER_FULL_BUFFER_LEN + CHATTER_DEVICE_ID_SIZE + FRAM_TS_SIZE + 1 // 1 for the packet length
+#define FRAM_PACKET_ENCRYPTED false
 #define FRAM_PACKET_VOLATILE true
-#define FRAM_PACKET_SLOTS 142
+#define FRAM_PACKET_SLOTS 120
 
 #define FRAM_NULL 255
 
@@ -70,6 +71,9 @@ class FramData {
 
     virtual bool recordExists (FramZone zone, uint8_t* recordKey);
     virtual uint8_t getRecordNum (FramZone zone, uint8_t* recordKey) = 0;
+    virtual void readKey(uint8_t* buffer, FramZone zone, uint8_t slot) = 0;
+
+    virtual void logCache() = 0;
 
   protected:
     void encrypt(uint8_t* clear, int clearLength);
@@ -83,6 +87,8 @@ class FramData {
 
     uint8_t encryptedBuffer[FRAM_ENC_BUFFER_SIZE];
     uint8_t unencryptedBuffer[FRAM_ENC_BUFFER_SIZE];
+
+    uint8_t guessEncryptionBufferSize (uint8_t* buffer, uint8_t terminator);
 
     ChaCha chacha;
     ChaCha chachaVolatile;
@@ -98,6 +104,7 @@ class FramData {
     FramZone zoneId[FRAM_NUM_ZONES] = {ZoneCluster, ZoneTrust, ZonePacket};
 
     Adafruit_FRAM_I2C fram;
+    //Adafruit_EEPROM_I2C fram;
     bool running = false;
 };
 

@@ -5,7 +5,7 @@
 
 #include <Arduino.h>
 #include "FramData.h"
-#include "Globals.h"
+#include "FramGlobals.h"
 
 #ifndef TRUSTCONFIG_H
 #define TRUSTCONFIG_H
@@ -25,7 +25,7 @@ class TrustConfig : public FramRecord {
 
 
     void deserialize (const uint8_t* recordKey, const uint8_t* dataBuffer);
-    void serialize (uint8_t* dataBuffer);
+    int serialize (uint8_t* dataBuffer);
     void serializeKey (uint8_t* keyBuffer);
 
   protected:

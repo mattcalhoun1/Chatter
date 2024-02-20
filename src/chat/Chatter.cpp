@@ -22,7 +22,25 @@ bool Chatter::init () {
         encryptor = new Encryptor(trustStore, hsm);
 
         if(encryptor->init()) {
-            packetStore = new SDPacketStore(encryptor);
+            encryptor->loadPublicKey(0);
+            logConsole("Encryption module connected");
+
+            if (packetStorageType == StorageSD) {
+                packetStore = new SDPacketStore(encryptor);
+            }
+            else {
+                logConsole("Creating caching fram datastore");
+                fram = new CachingFramDatastore(encryptor->getPublicKeyBuffer(), encryptor->getVolatileEncryptionKey());
+                logConsole("Created datastore, callingn init");
+                if (fram->init()) {
+                    logConsole("Fram initialized");
+                }
+                else {
+                    logConsole("Fram not initialized");
+                    return false;
+                }
+                packetStore = new FramPacketStore(fram, rtc);
+            }
             if (!packetStore->init()) {
                 logConsole("PacketStore did not initialize!");
                 return false;
@@ -30,9 +48,6 @@ bool Chatter::init () {
 
             // clear all messages
             packetStore->clearAllMessages();
-
-            encryptor->loadPublicKey(0);
-            logConsole("Encryption module connected");
 
             const char* did = encryptor->getDeviceId();
             memcpy(deviceId, did, CHATTER_DEVICE_ID_SIZE);
@@ -152,8 +167,8 @@ bool Chatter::isExpired() {
     for (int i = 0; i < tsLength; i++) {
         Serial.print(now[i]);
     }
-    Serial.println("");
-    */
+    Serial.println("");*/
+    
 
     // since the time format is sortable string, we can simply compare the ascii values
     return memcmp(now, nbf, tsLength) < 0 || memcmp(now, na, tsLength) > 0;
@@ -388,12 +403,12 @@ bool Chatter::retrieveMessage () {
                 bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
                 if (receiveBuffer.encryptionFlag == PacketEncrypted || receiveBuffer.encryptionFlag == PacketSigned) {
 
-                    logConsole("To: " + String((char*)receiveBuffer.recipient));
+                    /*logConsole("To: " + String((char*)receiveBuffer.recipient));
                     logConsole("From: " + String((char*)receiveBuffer.sender));
                     logConsole("Message ID: " + String((char*)receiveBuffer.messageId));
                     logConsole("Chunk ID: " + String((char*)receiveBuffer.chunkId));
                     logConsole("Length: " + String(receiveBuffer.rawContentLength));
-                    logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));
+                    logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));*/
 
                     // in bridge mode or with a signature, we do not decrypt
                     if (mode == BridgeMode || receiveBuffer.encryptionFlag == PacketSigned) {
@@ -404,7 +419,7 @@ bool Chatter::retrieveMessage () {
                         receiveBuffer.contentLength = receiveBuffer.rawContentLength;
                         receiveBuffer.content[receiveBuffer.rawContentLength] = '\0'; // null terminate
                     }
-                    else {
+                    else { 
                         int encryptedLength = receiveBuffer.contentLength; // exclude header
                         uint8_t* encryptedMessage = (uint8_t*)(receiveBuffer.rawMessage + receiveBuffer.headerLength);
 
@@ -421,8 +436,6 @@ bool Chatter::retrieveMessage () {
 
                     // save the chatter packet
                     packetStore->savePacket(&receiveBuffer);
-
-                    // for now, assume it's text
                     receiveBufferMessageType = receiveBuffer.encryptionFlag == PacketSigned ? MessageTypeSignature : MessageTypeText;
 
                     // if it was a signature, go ahead and copy the entire message into
@@ -628,6 +641,12 @@ int Chatter::generateFooter (const char* recipientDeviceId, char* messageId, uin
     memset(fullSignBuffer, 0, CHATTER_HEADER_SIZE + CHATTER_FULL_MESSAGE_BUFFER_SIZE);
     memcpy(fullSignBuffer, headerBuffer, CHATTER_HEADER_SIZE);
     memcpy(fullSignBuffer+(CHATTER_HEADER_SIZE), message, messageLength);
+
+    Serial.println("Sig base: ");
+    for (int i = 0; i < CHATTER_HEADER_SIZE + messageLength; i++) {
+        Serial.print((char)fullSignBuffer[i]);
+    }
+    Serial.println("");
 
     // hash of message, 32 bytes
     int hashSize = encryptor->generateHash((char*)fullSignBuffer, (CHATTER_HEADER_SIZE) + messageLength, hashBuffer);

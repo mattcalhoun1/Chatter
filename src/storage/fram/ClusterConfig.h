@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "FramData.h"
-#include "Globals.h"
+#include "FramGlobals.h"
 
 #ifndef CLUSTERCONFIG_H
 #define CLUSTERCONFIG_H
@@ -29,7 +29,7 @@ class ClusterConfig : public FramRecord {
 
 
     void deserialize (const uint8_t* recordKey, const uint8_t* dataBuffer);
-    void serialize (uint8_t* dataBuffer);
+    int serialize (uint8_t* dataBuffer);
     void serializeKey (uint8_t* keyBuffer);
 
   protected:

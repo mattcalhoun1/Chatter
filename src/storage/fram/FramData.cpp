@@ -7,7 +7,7 @@ FramData::FramData (const uint8_t* _key, const uint8_t* _volatileKey) {
 }
 
 bool FramData::init() {
-  running = fram.begin(0x50);
+  running = fram.begin();//0x50);
 
   // clear any volatile zones
   for (uint8_t i = 0; i < FRAM_NUM_ZONES; i++) {
@@ -25,8 +25,6 @@ bool FramData::recordExists (FramZone zone, uint8_t* recordKey) {
 
 
 bool FramData::writeToNextSlot (FramRecord* record) {
-  Serial.println(record->getZone());
-
   // get the next available slot
   uint8_t nextSlot = getNextSlot(record->getZone());
   if (writeRecord(record, nextSlot)) {
@@ -59,20 +57,27 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
   record->serializeKey(unencryptedBuffer);
   uint16_t dataPosition = getFramKeyLocation(record->getZone(), slot);
 
-  fram.write(dataPosition, unencryptedBuffer, zoneKeySizes[record->getZone()]);
+  if(!fram.write(dataPosition, unencryptedBuffer, zoneKeySizes[record->getZone()])) {
+    Serial.println("Key not written to fram");
+  }
 
   // serialize into unencrypted byffer
-  record->serialize(unencryptedBuffer);
+  memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
+  uint16_t actualDataSize = record->serialize(unencryptedBuffer);
   dataPosition = getFramDataLocation(record->getZone(), slot);
 
   // enrypt
+  uint16_t bytesToWrite = actualDataSize;
   if (zoneEncrypted[record->getZone()]) {
-    encrypt(unencryptedBuffer, zoneDataSizes[record->getZone()]);
-    fram.write(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
+    encrypt(unencryptedBuffer, actualDataSize);
+    bytesToWrite = guessEncryptionBufferSize(encryptedBuffer, 0);
+    fram.write(dataPosition, unencryptedBuffer, bytesToWrite);
   }
   else {
-    fram.write(dataPosition, unencryptedBuffer, zoneDataSizes[record->getZone()]);
+    fram.write(dataPosition, unencryptedBuffer, bytesToWrite);
   }
+
+  return true;
 }
 
 bool FramData::readRecord (FramRecord* record, uint8_t slot) {
@@ -83,22 +88,23 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
   uint16_t dataPosition = getFramKeyLocation(record->getZone(), slot);
   fram.read(dataPosition, recordKey, zoneKeySizes[record->getZone()]);
 
+    dataPosition = getFramDataLocation(record->getZone(), slot);
+    memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
+
   if (zoneEncrypted[record->getZone()]) {
     // read into the encrypted buffer
-    dataPosition = getFramDataLocation(record->getZone(), slot);
     fram.read(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
 
-    memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
     decrypt(encryptedBuffer, FRAM_ENC_BUFFER_SIZE);
   }
   else {
     // write the encrypted record to the appropriate slot
-    dataPosition = getFramDataLocation(record->getZone(), slot);
     fram.read(dataPosition, unencryptedBuffer, zoneDataSizes[record->getZone()]);
   }
 
   // ingest the record
   record->deserialize(recordKey, unencryptedBuffer);
+  return true;
 }
 
 uint16_t FramData::getFramDataLocation (FramZone zone, uint8_t slot) {
@@ -131,6 +137,28 @@ uint8_t FramData::getNextSlot (FramZone zone) {
     return 0;
   }
   return newestSlot + 1; // slot after newest will be next
+}
+
+// chacha encryption doens't return encrypted or decrypted length, so
+// i use terminators to do a best guess
+uint8_t FramData::guessEncryptionBufferSize (uint8_t* buffer, uint8_t terminator) {
+    // find the index of at least 3 repeating terminators
+    uint8_t size = 0;
+    uint8_t seqLen = 0; // how many terms in a rawContentLength
+    for (uint8_t i = 0; i < FRAM_ENC_BUFFER_SIZE; i++) {
+        if (buffer[i] == terminator) {
+            seqLen++;
+        }
+        else {
+            seqLen = 0;
+            size = i+1;
+        }
+
+        if (seqLen >= 3) {
+            return size;
+        }
+    }
+    return size;
 }
 
 void FramData::encrypt(uint8_t* clear, int clearLength) {
@@ -169,7 +197,7 @@ bool FramData::clearZone (FramZone zone) {
   fram.write(addr, 0);
 
   // latest slot pointer goes to the last, so next will result in 0
-  Serial.print("Clear zone: setting next slot for zone: ");
+  Serial.print("Clear zone: setting latest used slot for zone: ");
   Serial.print(zone);
   Serial.print(" to ");
   Serial.println(zoneSlots[zone] - 1);
