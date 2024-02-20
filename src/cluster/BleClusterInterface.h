@@ -17,7 +17,9 @@ class BleClusterInterface : public ClusterInterface {
         bool running = false;    
         bool connected = false;
         BLEService* service;
-        BLEByteCharacteristic* byteCharacteristic;
+        BLECharacteristic* tx;
+        BLECharacteristic* rx;
+        BLEDevice bleDevice;
 
 
 };

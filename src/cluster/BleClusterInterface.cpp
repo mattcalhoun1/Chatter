@@ -3,8 +3,12 @@
 #if defined (ARDUINO_SAMD_NANO_33_IOT)
 bool BleClusterInterface::init () {
     service = new BLEService(BLE_CLUSTER_INTERFACE_UUID);
-    byteCharacteristic = new BLEByteCharacteristic(BLE_CLUSTER_CHAR_UUID, BLERead | BLEWrite);
-    service->addCharacteristic(*byteCharacteristic);
+    tx = new BLECharacteristic(BLE_CLUSTER_CHAR_UUID, BLERead, 150);
+    rx = new BLECharacteristic(BLE_CLUSTER_CHAR_UUID, BLEWrite, 150);
+
+    service->addCharacteristic(*tx);
+    service->addCharacteristic(*rx);
+
     
     if(BLE.begin()) {
         BLE.setDeviceName(BLE_CLUSTER_SERVICE_NAME);
@@ -31,6 +35,11 @@ bool BleClusterInterface::init () {
 }
 
 bool BleClusterInterface::handleClientInput (const char* input, int inputLength) {
+    Serial.print("Client Input: ");
+    for (int i = 0; i < inputLength; i++) {
+        Serial.print(input[i]);
+    }
+    Serial.println("");
     return true;
 }
 
@@ -39,6 +48,24 @@ bool BleClusterInterface::sendToClient (const char* clusterData, int dataLength)
 }
 
 bool BleClusterInterface::isConnected () {
+    connected = false;
+    bleDevice = BLE.central();
+    if (bleDevice) {
+        Serial.print("Connected to central: ");
+        // print the central's MAC address:
+        Serial.println(bleDevice.address());    
+        connected = true;
+
+        if (rx->written()) {
+            Serial.println("characteristic changed.");
+        }
+
+        uint8_t txBuffer[128];
+        for (int i = 0; i < 128; i++) {
+            txBuffer[i] = i;
+        }
+        tx->setValue((const char*)txBuffer);
+    }
     return connected;
 }
 
