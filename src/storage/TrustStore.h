@@ -6,6 +6,12 @@
 #ifndef TRUSTSTORE_H
 #define TRUSTSTORE_H
 
+enum TrustDeviceChannel {
+  TrustChannelLora = (uint8_t)'L',
+  TrustChannelUdp = (uint8_t)'U',
+  TrustChannelNone = (uint8_t)'0',
+};
+
 class TrustStore : public StorageBase {
     public:
         virtual bool init () = 0;
@@ -18,6 +24,8 @@ class TrustStore : public StorageBase {
         virtual bool clearTruststore () = 0;
         virtual bool findDeviceId (const char* key, char* deviceIdBuffer) = 0;
         virtual bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) = 0;
+        virtual TrustDeviceChannel getPreferredChannel (const char* deviceId) {return TrustChannelLora;}
+        virtual TrustDeviceChannel getSecondaryChannel (const char* deviceId) {return TrustChannelUdp;}
 };
 
 #endif

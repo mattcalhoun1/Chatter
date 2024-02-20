@@ -3,11 +3,20 @@
 
 #define STORAGE_LOG_ENABLED true
 #define STORAGE_DEVICE_ID_LENGTH 8
-#define STORAGE_MAX_ALIAS_LENGTH 16
+#define STORAGE_MAX_ALIAS_LENGTH 12
 #define STORAGE_GLOBAL_NET_ID_SIZE 2
 #define STORAGE_LOCAL_NET_ID_SIZE 3
 
-#define STORAGE_PUBLIC_KEY_LENGTH 128 // actually only 128, need terminator byte
+// we could go as high as 254, but are limited
+// by truststore size of the master device.
+// since the device IDs + status are held in memory
+// we dont want to use that many for now
+#define STORAGE_MAX_CLUSTER_DEVICES 90
+
+// slots reserved for cluster root, bridges, etc
+#define FRAM_RESERVED_TRUST_SLOTS 4
+
+#define STORAGE_PUBLIC_KEY_LENGTH 128 // 
 #define STORAGE_HASH_BUFFER_SIZE 150
 #define STORAGE_HASH_LENGTH 32 //sha256
 #define STORAGE_PACKET_HEADER_LENGTH 23

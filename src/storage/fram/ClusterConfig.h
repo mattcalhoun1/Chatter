@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "FramData.h"
 #include "FramGlobals.h"
+#include "../ClusterStore.h"
 
 #ifndef CLUSTERCONFIG_H
 #define CLUSTERCONFIG_H
@@ -8,6 +9,18 @@
 class ClusterConfig : public FramRecord {
   public:
     FramZone getZone () { return ZoneCluster; }
+
+    void setClusterId (const char* _clusterId);
+    const char* getClusterId () {return (const char*)clusterId;}
+
+    void setStatus (ClusterStatus _status) {status = _status;}
+    ClusterStatus getStatus () {return status;}
+
+    void setPreferredChannel (ClusterChannel _preferred) {preferredChannel = _preferred;}
+    ClusterChannel getPreferredChannel () {return preferredChannel;}
+
+    void setSecondaryChannel (ClusterChannel _secondary) {secondaryChannel = _secondary;}
+    ClusterChannel getSecondaryChannel () {return secondaryChannel;}
 
     void setDeviceId (const char* _deviceId);
     const char* getDeviceId () {return (const char*)deviceId;}
@@ -24,8 +37,11 @@ class ClusterConfig : public FramRecord {
     void setAlias (const char* _alias);
     const char* getAlias () {return (const char*)alias;}
 
-    void setWifi (const char* _wifi);
-    const char* getWifi () {return (const char*)wifi;}
+    void setWifiSsid (const char* _wifiSsid);
+    const char* getWifiSsid () {return (const char*)wifiSsid;}
+
+    void setWifiCred (const char* _wifiCred);
+    const char* getWifiCred () {return (const char*)wifiCred;}
 
 
     void deserialize (const uint8_t* recordKey, const uint8_t* dataBuffer);
@@ -33,22 +49,18 @@ class ClusterConfig : public FramRecord {
     void serializeKey (uint8_t* keyBuffer);
 
   protected:
-    // unencrypted
+    char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE];
+    ClusterStatus status;
+
+    ClusterChannel preferredChannel;
+    ClusterChannel secondaryChannel;
     char deviceId[CHATTER_DEVICE_ID_SIZE];
-
-    // total unecrypted bytes (not including key above)= 74
-    // encrypted
-    // frequency
-    // key
-    // iv
-    // device alias
-    // wifi
-
     char frequency[CHATTER_LORA_FREQUENCY_DIGITS];
     uint8_t key[ENC_SYMMETRIC_KEY_SIZE];
     uint8_t iv[ENC_IV_SIZE];
     char alias[CHATTER_ALIAS_NAME_SIZE];
-    char wifi[CHATTER_WIFI_STRING_MAX_SIZE];
+    char wifiSsid[CHATTER_WIFI_STRING_MAX_SIZE];
+    char wifiCred[CHATTER_WIFI_STRING_MAX_SIZE];
 };
 
 #endif

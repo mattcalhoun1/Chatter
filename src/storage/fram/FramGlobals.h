@@ -30,14 +30,16 @@
 #define ENC_SIG_BUFFER_SIZE 64
 #define ENC_PUB_KEY_SIZE 128
 
-#define FRAM_NUM_ZONES 3
-#define FRAM_ZONE_CLUSTER 0
-#define FRAM_ZONE_TRUST 1
-#define FRAM_ZONE_PACKET 2
+#define FRAM_NUM_ZONES 4
+#define FRAM_ZONE_DEVICE 0
+#define FRAM_ZONE_CLUSTER 1
+#define FRAM_ZONE_TRUST 2
+#define FRAM_ZONE_PACKET 3
 
 enum FramZone {
-  ZoneCluster = FRAM_ZONE_CLUSTER,
-  ZoneTrust = FRAM_ZONE_TRUST,
-  ZonePacket = FRAM_ZONE_PACKET
+    ZoneDevice = FRAM_ZONE_DEVICE,
+    ZoneCluster = FRAM_ZONE_CLUSTER,
+    ZoneTrust = FRAM_ZONE_TRUST,
+    ZonePacket = FRAM_ZONE_PACKET
 };
 #endif

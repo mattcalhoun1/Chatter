@@ -1,5 +1,9 @@
 #include "ClusterConfig.h"
 
+void ClusterConfig::setClusterId (const char* _clusterId) {
+  memcpy(clusterId, _clusterId, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+}
+
 void ClusterConfig::setDeviceId (const char* _deviceId) {
   memcpy(deviceId, _deviceId, CHATTER_DEVICE_ID_SIZE);
 }
@@ -22,55 +26,80 @@ void ClusterConfig::setAlias (const char* _alias) {
   memcpy(alias, _alias, min(strlen(_alias), CHATTER_ALIAS_NAME_SIZE));
 }
 
-void ClusterConfig::setWifi (const char* _wifi) {
-  memset(wifi, 0, CHATTER_WIFI_STRING_MAX_SIZE);
-  memcpy(wifi, _wifi, min(strlen(_wifi), CHATTER_WIFI_STRING_MAX_SIZE));
+void ClusterConfig::setWifiSsid (const char* _wifiSsid) {
+  memset(wifiSsid, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+  memcpy(wifiSsid, _wifiSsid, min(strlen(_wifiSsid), CHATTER_WIFI_STRING_MAX_SIZE));
+}
+
+void ClusterConfig::setWifiCred (const char* _wifiCred) {
+  memset(wifiCred, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+  memcpy(wifiCred, _wifiCred, min(strlen(_wifiCred), CHATTER_WIFI_STRING_MAX_SIZE));
 }
 
 void ClusterConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBuffer) {
-  // record key is the device id
+    // record key is the device id
+    memcpy(clusterId, recordKey, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+    status = (ClusterStatus)recordKey[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE];
 
-  memcpy(deviceId, recordKey, CHATTER_DEVICE_ID_SIZE);
+    // data buffer is in the following order (total of 74 bytes)
+    const uint8_t* bufferPos = dataBuffer;
+    preferredChannel = (ClusterChannel)bufferPos[0];
+    secondaryChannel = (ClusterChannel)bufferPos[1];
+    bufferPos += 2;
 
-  // data buffer is in the following order (total of 74 bytes)
-  const uint8_t* bufferPos = dataBuffer;
-  memcpy(frequency, bufferPos, CHATTER_LORA_FREQUENCY_DIGITS);
-  bufferPos += CHATTER_LORA_FREQUENCY_DIGITS;
+    memcpy(deviceId, recordKey, CHATTER_DEVICE_ID_SIZE);
+    bufferPos += CHATTER_DEVICE_ID_SIZE;
 
-  memcpy(key, bufferPos, ENC_SYMMETRIC_KEY_SIZE);
-  bufferPos += ENC_SYMMETRIC_KEY_SIZE;
+    memcpy(frequency, bufferPos, CHATTER_LORA_FREQUENCY_DIGITS);
+    bufferPos += CHATTER_LORA_FREQUENCY_DIGITS;
 
-  memcpy(iv, bufferPos, ENC_IV_SIZE);
-  bufferPos += ENC_IV_SIZE;
+    memcpy(key, bufferPos, ENC_SYMMETRIC_KEY_SIZE);
+    bufferPos += ENC_SYMMETRIC_KEY_SIZE;
 
-  memcpy(alias, bufferPos, CHATTER_ALIAS_NAME_SIZE);
-  bufferPos += CHATTER_ALIAS_NAME_SIZE;
+    memcpy(iv, bufferPos, ENC_IV_SIZE);
+    bufferPos += ENC_IV_SIZE;
 
-  memcpy(wifi, bufferPos, CHATTER_WIFI_STRING_MAX_SIZE);
+    memcpy(alias, bufferPos, CHATTER_ALIAS_NAME_SIZE);
+    bufferPos += CHATTER_ALIAS_NAME_SIZE;
+
+    memcpy(wifiSsid, bufferPos, CHATTER_WIFI_STRING_MAX_SIZE);
+    bufferPos += CHATTER_WIFI_STRING_MAX_SIZE;
+
+    memcpy(wifiCred, bufferPos, CHATTER_WIFI_STRING_MAX_SIZE);
 }
 
 int ClusterConfig::serialize (uint8_t* dataBuffer) {
-  // data buffer is in the following order (total of 74 bytes)
-  uint8_t* bufferPos = dataBuffer;
-  memcpy(bufferPos, frequency, CHATTER_LORA_FREQUENCY_DIGITS);
-  bufferPos += CHATTER_LORA_FREQUENCY_DIGITS;
+    // data buffer is in the following order (total of 74 bytes)
+    uint8_t* bufferPos = dataBuffer;
+    bufferPos[0] = preferredChannel;
+    bufferPos[1] = secondaryChannel;
+    bufferPos += 2;
 
-  memcpy(bufferPos, key, ENC_SYMMETRIC_KEY_SIZE);
-  bufferPos += ENC_SYMMETRIC_KEY_SIZE;
+    memcpy(bufferPos, deviceId, CHATTER_DEVICE_ID_SIZE);
+    bufferPos += CHATTER_DEVICE_ID_SIZE;
 
-  memcpy(bufferPos, iv, ENC_IV_SIZE);
-  bufferPos += ENC_IV_SIZE;
+    memcpy(bufferPos, frequency, CHATTER_LORA_FREQUENCY_DIGITS);
+    bufferPos += CHATTER_LORA_FREQUENCY_DIGITS;
 
-  memcpy(bufferPos, alias, CHATTER_ALIAS_NAME_SIZE);
-  bufferPos += CHATTER_ALIAS_NAME_SIZE;
+    memcpy(bufferPos, key, ENC_SYMMETRIC_KEY_SIZE);
+    bufferPos += ENC_SYMMETRIC_KEY_SIZE;
 
-  memcpy(bufferPos, wifi, CHATTER_WIFI_STRING_MAX_SIZE);
+    memcpy(bufferPos, iv, ENC_IV_SIZE);
+    bufferPos += ENC_IV_SIZE;
 
-  // length is always the same
-  return FRAM_CLUSTER_DATASIZE;
+    memcpy(bufferPos, alias, CHATTER_ALIAS_NAME_SIZE);
+    bufferPos += CHATTER_ALIAS_NAME_SIZE;
 
+    memcpy(bufferPos, wifiSsid, CHATTER_WIFI_STRING_MAX_SIZE);
+    bufferPos += CHATTER_WIFI_STRING_MAX_SIZE;
+
+    memcpy(bufferPos, wifiCred, CHATTER_WIFI_STRING_MAX_SIZE);
+
+    // length is always the same
+    return FRAM_CLUSTER_DATASIZE;
 }
 
 void ClusterConfig::serializeKey (uint8_t* keyBuffer) {
-  memcpy(keyBuffer, deviceId, CHATTER_DEVICE_ID_SIZE);
+  memcpy(keyBuffer, clusterId, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+  keyBuffer[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE] = status;
 }
