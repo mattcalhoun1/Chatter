@@ -9,7 +9,7 @@ bool FramClusterStore::loadClusterBuffer (const char* clusterId) {
     if (clusterLoaded == false || memcmp(clusterId, clusterBuffer.getClusterId(), STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE) != 0) {
         populateKeyBuffer(clusterId);
         uint8_t slotNum = datastore->getRecordNum(ZoneCluster, (uint8_t*)keyBuffer);
-        if (slotNum >= 0) {
+        if (slotNum != FRAM_NULL) {
             return datastore->readRecord(&clusterBuffer, slotNum);
         }
         else {
@@ -46,7 +46,7 @@ List<String> FramClusterStore::getClusterIds() {
 bool FramClusterStore::loadDeviceId (const char* clusterId, char* buffer) {
     if (loadClusterBuffer(clusterId)) {
         memcpy(buffer, clusterBuffer.getDeviceId(), STORAGE_DEVICE_ID_LENGTH);
-        buffer[STORAGE_CHUNK_ID_LENGTH] = 0;
+        buffer[STORAGE_DEVICE_ID_LENGTH] = 0;
         return true;
     }
     return false;
@@ -133,7 +133,7 @@ bool FramClusterStore::deleteCluster (const char* clusterId) {
         populateKeyBuffer(clusterId);
 
         uint8_t slotNum = datastore->getRecordNum(ZoneCluster, (uint8_t*)clusterId);
-        if (slotNum >= 0) {
+        if (slotNum != FRAM_NULL) {
             bool result = datastore->writeRecord(&clusterBuffer, slotNum);
             if (result) {
                 logConsole("Deleted cluster");
@@ -148,7 +148,7 @@ bool FramClusterStore::deleteCluster (const char* clusterId) {
     return true; // if not found, its already deleted
 }
 
-bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) {
+bool FramClusterStore::addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) {
     // make sure cluster doesnt already exist
     populateKeyBuffer(clusterId);
 
@@ -162,7 +162,7 @@ bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uin
     clusterBuffer.setKey(symmetricKey);
     clusterBuffer.setIv(iv);
     char freq[CHATTER_LORA_FREQUENCY_DIGITS + 1];
-    sprintf(freq, "%01d", frequency);
+    sprintf(freq, "%.1f", frequency);
 
     clusterBuffer.setFrequency(freq);
     clusterBuffer.setWifiSsid(wifiSsid);
@@ -172,6 +172,7 @@ bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uin
     clusterBuffer.setSecondaryChannel(secondaryChannel);
     clusterBuffer.setAuthType(authType);
     clusterBuffer.setStatus(ClusterActive);
+    clusterBuffer.setDeviceId(deviceId);
 
     if (datastore->writeToNextSlot(&clusterBuffer)) {
         logConsole("Cluster added");

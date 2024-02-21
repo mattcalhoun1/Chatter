@@ -76,7 +76,7 @@ bool FramTrustStore::findNextAvailableDeviceId (const char* networkPrefix, int s
 TrustDeviceChannel FramTrustStore::getPreferredChannel (const char* deviceId) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (datastore->readRecord(&trustBuffer, slotNum)) {
             return trustBuffer.getPreferredChannel();
         }
@@ -93,7 +93,7 @@ TrustDeviceChannel FramTrustStore::getPreferredChannel (const char* deviceId) {
 TrustDeviceChannel FramTrustStore::getSecondaryChannel (const char* deviceId) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (datastore->readRecord(&trustBuffer, slotNum)) {
             return trustBuffer.getSecondaryChannel();
         }
@@ -110,7 +110,7 @@ TrustDeviceChannel FramTrustStore::getSecondaryChannel (const char* deviceId) {
 bool FramTrustStore::removeTrustedDevice (const char* deviceId) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (datastore->readRecord(&trustBuffer, slotNum)) {
             trustBuffer.setStatus(TrustDeleted);
             if(datastore->writeRecord(&trustBuffer, slotNum)) {
@@ -141,7 +141,7 @@ bool FramTrustStore::clearTruststore () {
 bool FramTrustStore::loadPublicKey(const char* deviceId, uint8_t* buff) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (datastore->readRecord(&trustBuffer, slotNum)) {
             memcpy(buff, trustBuffer.getPublicKey(), STORAGE_PUBLIC_KEY_LENGTH);
             buff[STORAGE_PUBLIC_KEY_LENGTH] = 0;
@@ -160,7 +160,7 @@ bool FramTrustStore::loadPublicKey(const char* deviceId, uint8_t* buff) {
 bool FramTrustStore::loadAlias(const char* deviceId, char* aliasBuffer) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (datastore->readRecord(&trustBuffer, slotNum)) {
             memcpy(aliasBuffer, trustBuffer.getAlias(), STORAGE_MAX_ALIAS_LENGTH);
             aliasBuffer[STORAGE_MAX_ALIAS_LENGTH] = 0;

@@ -6,12 +6,11 @@ bool FramDeviceStore::init () {
 
 bool FramDeviceStore::loadBuffer (const char* deviceKeyName, char* buffer) {
     uint8_t slotNum = datastore->getRecordNum(ZoneDevice, (uint8_t*)deviceKeyName);
-    if (slotNum >= 0 && datastore->readRecord(&configBuffer, slotNum)) {
+    if (slotNum != FRAM_NULL && datastore->readRecord(&configBuffer, slotNum)) {
         memcpy(buffer, configBuffer.getValue(), FRAM_DEVICE_DATASIZE_USABLE);
         return true;
     }
 
-    logConsole("value not yet set");
     return false;
 }
 

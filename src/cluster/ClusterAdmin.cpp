@@ -160,7 +160,7 @@ bool ClusterAdmin::genesis () {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull);
+    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull);
 
     Serial.println("Making default cluster");
     chatter->getDeviceStore()->setDefaultClusterId(clusterId);
@@ -235,7 +235,7 @@ bool ClusterAdmin::genesisRandom () {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull);
+    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull);
 
     Serial.println("Making default cluster");
     chatter->getDeviceStore()->setDeviceName(newDeviceId);
@@ -296,9 +296,9 @@ bool ClusterAdmin::dumpSymmetricKey(const char* hostClusterId) {
     chatter->getClusterStore()->loadSymmetricKey(hostClusterId, symmetricKey);
 
     Encryptor* encryptor = chatter->getEncryptor();
-    encryptor->hexify(symmetricKey, ENC_PUB_KEY_SIZE);
-    memset(symmetricKey, 0, ENC_PUB_KEY_SIZE);
-    for (uint8_t i = 0; i < ENC_PUB_KEY_SIZE*2; i++) {
+    encryptor->hexify(symmetricKey, ENC_SYMMETRIC_KEY_SIZE);
+    memset(symmetricKey, 0, ENC_SYMMETRIC_KEY_SIZE*2);
+    for (uint8_t i = 0; i < ENC_SYMMETRIC_KEY_SIZE*2; i++) {
         Serial.print(encryptor->getHexBuffer()[i]);
     }
     encryptor->clearHexBuffer(); // dont leave key in hex buffer
@@ -306,8 +306,9 @@ bool ClusterAdmin::dumpSymmetricKey(const char* hostClusterId) {
 
     Serial.print(CLUSTER_CFG_IV);
     Serial.print(CLUSTER_CFG_DELIMITER);
+    chatter->getClusterStore()->loadIv(hostClusterId, iv);
     encryptor->hexify(iv, ENC_IV_SIZE);
-    memset(iv, 0, ENC_PUB_KEY_SIZE);
+    memset(iv, 0, ENC_IV_SIZE);
 
     for (uint8_t i = 0; i < ENC_IV_SIZE*2; i++) {
         Serial.print(encryptor->getHexBuffer()[i]);
@@ -376,9 +377,13 @@ bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceTyp
     memset(alias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
 
     switch (deviceType) {
+        case ChatterDeviceBridgeLora:
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_LORA_ADDRESS, 3);
+            memcpy(alias, BASE_LORA_ALIAS, strlen(BASE_LORA_ALIAS));
+            break;
         case ChatterDeviceBridgeWifi:
             memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_WIFI_ADDRESS, 3);
-            memcpy(alias, BASE_WIFI_ADDRESS, strlen(BASE_WIFI_ADDRESS));
+            memcpy(alias, BASE_WIFI_ALIAS, strlen(BASE_WIFI_ALIAS));
             break;
         case ChatterDeviceBridgeCloud:
             memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_CLOUD_ADDRESS, 3);

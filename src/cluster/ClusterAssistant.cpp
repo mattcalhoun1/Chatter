@@ -113,7 +113,7 @@ bool ClusterAssistant::attemptOnboard () {
         char wifiSsid[CHATTER_WIFI_STRING_MAX_SIZE + 1];
         char wifiCred[CHATTER_WIFI_STRING_MAX_SIZE + 1];
 
-    clusterStore->addCluster (clusterId, alias, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType);
+    clusterStore->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType);
     Serial.println("New cluster added.");
 
     return true;

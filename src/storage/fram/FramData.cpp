@@ -61,7 +61,7 @@ bool FramData::writeToNextSlot (FramRecord* record) {
     // bump the last used slot to what we just used
     uint16_t zoneLoc = zoneLocations[record->getZone()];
     if(fram.write(zoneLoc + 1, nextSlot)) {
-      uint8_t slotsUsed = getNumUsedSlots(record->getZone());
+      uint8_t slotsUsed = FramData::getNumUsedSlots(record->getZone());
 
       if (slotsUsed < zoneSlots[record->getZone()]) {
         return fram.write(zoneLoc, slotsUsed+1);
@@ -90,16 +90,6 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
     Serial.println("Key not written to fram");
   }
 
-  Serial.print("At slot: ");
-  Serial.print(slot);
-  Serial.print(", position: ");
-  Serial.print(dataPosition);
-  Serial.print(", Wrote key: "); 
-  for (int i = 0; i < zoneKeySizes[record->getZone()]; i++) {
-    Serial.print((char)unencryptedBuffer[i]);
-  }
-  Serial.println("");
-
   // serialize into unencrypted byffer
   memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
   uint16_t actualDataSize = record->serialize(unencryptedBuffer);
@@ -110,7 +100,7 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
   if (zoneEncrypted[record->getZone()]) {
     encrypt(unencryptedBuffer, actualDataSize);
     bytesToWrite = guessEncryptionBufferSize(encryptedBuffer, 0);
-    fram.write(dataPosition, unencryptedBuffer, bytesToWrite);
+    fram.write(dataPosition, encryptedBuffer, bytesToWrite);
   }
   else {
     fram.write(dataPosition, unencryptedBuffer, bytesToWrite);
@@ -132,8 +122,8 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
 
   if (zoneEncrypted[record->getZone()]) {
     // read into the encrypted buffer
+    memset(encryptedBuffer, 0, zoneDataSizes[record->getZone()]);
     fram.read(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
-
     decrypt(encryptedBuffer, FRAM_ENC_BUFFER_SIZE);
   }
   else {

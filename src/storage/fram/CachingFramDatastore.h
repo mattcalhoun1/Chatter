@@ -41,6 +41,7 @@ class CachingFramDatastore : public FramData {
 
     void updateMap (FramRecord* record, uint8_t slot);
     void loadCacheIfNecessary ();
+    uint8_t getLatestSlot(FramZone zone);
 
 };
 #endif

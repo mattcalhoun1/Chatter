@@ -25,23 +25,19 @@ uint8_t CachingFramDatastore::getNumUsedSlots (FramZone zone) {
     return slotsUsedCache[zone];
 }
 
-uint8_t CachingFramDatastore::getNextSlot (FramZone zone) {
-    loadCacheIfNecessary();
+uint8_t CachingFramDatastore::getLatestSlot(FramZone zone) {
     if (latestSlotIdCache[zone] == FRAM_NULL) {
         latestSlotIdCache[zone] = fram.read(zoneLocations[zone] + 1);
     }
+    return latestSlotIdCache[zone];
+}
 
+uint8_t CachingFramDatastore::getNextSlot (FramZone zone) {
+    loadCacheIfNecessary();
+    getLatestSlot(zone);
     if (latestSlotIdCache[zone] >= zoneSlots[zone] - 1) {
-        Serial.print("Next slot in zone: ");
-        Serial.print(zone);
-        Serial.print(" will be: 0");
         return 0;
     }
-
-    Serial.print("Next slot in zone: ");
-    Serial.print(zone);
-    Serial.print(" will be: ");
-    Serial.println(latestSlotIdCache[zone] + 1);
     return latestSlotIdCache[zone] + 1; // slot after newest will be next
 }
 
@@ -61,8 +57,7 @@ uint8_t CachingFramDatastore::getRecordNum (FramZone zone, uint8_t* recordKey) {
     // cache lazyload already happens in next line
     uint8_t usedSlots = getNumUsedSlots(zone);
     uint8_t zid = zoneId[zone];
-    uint8_t latest = latestSlotIdCache[zid];
-
+    uint8_t latest = getLatestSlot(zone);
 
     // if the slots are empty, this record does not exist
     if (usedSlots == 0) {
@@ -139,18 +134,8 @@ void CachingFramDatastore::loadCacheIfNecessary () {
 void CachingFramDatastore::logCache () {
   for (uint8_t z = 0; z < FRAM_NUM_ZONES; z++) {
     uint8_t usedSlots = getNumUsedSlots(zoneId[z]);
-    Serial.print("Z");
-    Serial.print(z);
-    Serial.print(" Slots Used: ");
-    Serial.println(usedSlots);
-
     
     for (uint8_t s = 0; s < usedSlots; s++) {
-      Serial.print("Z");
-      Serial.print(z);
-      Serial.print(":S");
-      Serial.print(s);
-      Serial.print(" = ");
       readKey(keyBuffer, zoneId[z], s);
       for (uint8_t i = 0; i < zoneKeySizes[z]; i++) {
         Serial.print((char)keyBuffer[i]);

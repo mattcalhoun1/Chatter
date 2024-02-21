@@ -40,7 +40,7 @@ class ClusterStore : public StorageBase {
         virtual bool loadIv (const char* clusterId, uint8_t* buffer) = 0;
 
         virtual bool deleteCluster (const char* clusterId) = 0;
-        virtual bool addCluster (const char* clusterId, const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) = 0;
+        virtual bool addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) = 0;
 
 };
 

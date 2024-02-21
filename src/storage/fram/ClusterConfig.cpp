@@ -9,6 +9,12 @@ void ClusterConfig::setDeviceId (const char* _deviceId) {
 }
 
 void ClusterConfig::setFrequency (const char* _frequency) {
+    Serial.print("Setting freq: ");
+    for (int i = 0; i < 5; i++) {
+        Serial.print(_frequency[i]);
+    }
+    Serial.println("");
+
   memset(frequency, 0, CHATTER_LORA_FREQUENCY_DIGITS);
   memcpy(frequency, _frequency, min(strlen(_frequency), CHATTER_LORA_FREQUENCY_DIGITS));
 }
@@ -48,7 +54,7 @@ void ClusterConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBu
     authType = (ClusterAuthType)bufferPos[2];
     bufferPos += 3;
 
-    memcpy(deviceId, recordKey, CHATTER_DEVICE_ID_SIZE);
+    memcpy(deviceId, bufferPos, CHATTER_DEVICE_ID_SIZE);
     bufferPos += CHATTER_DEVICE_ID_SIZE;
 
     memcpy(frequency, bufferPos, CHATTER_LORA_FREQUENCY_DIGITS);

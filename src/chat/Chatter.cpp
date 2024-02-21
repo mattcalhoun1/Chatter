@@ -75,8 +75,9 @@ bool Chatter::init () {
                     else {
                         logConsole("Chatter did not initialize. Encryption chip error?");
                     }
-                } else {
-                    logConsole("Custer store not initialized or missing default cluster");
+                } 
+                else {
+                    logConsole("Cluster store not initialized or missing default cluster");
                 }
             }
             else {
@@ -871,7 +872,8 @@ bool Chatter::loadClusterConfig (const char* newClusterId) {
         logConsole(newClusterId);
         if (clusterStore->loadDeviceId(newClusterId, deviceId)) {
             memcpy(clusterId, newClusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE);
-            clusterId[CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE + 1] = 0;
+            clusterId[CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE] = 0;
+            deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
             clusterStore->loadAlias(clusterId, clusterAlias);
             clusterStore->loadWifiCred(clusterId, wifiCred);
             clusterStore->loadWifiSsid(clusterId, wifiSsid);
@@ -880,6 +882,7 @@ bool Chatter::loadClusterConfig (const char* newClusterId) {
             loraFrequency = clusterStore->getFrequency(clusterId);
             logConsole("Cluster configured: ");
             logConsole(clusterId);
+            return true;
         }
         else {
             logConsole("Cluster not found");
@@ -897,7 +900,8 @@ bool Chatter::deviceStoreInitialized () {
         if (deviceStore->loadDeviceName (deviceId)) {
             logConsole("Device: ");
             logConsole(deviceId);
-            return true;
+
+            return deviceStore->getDefaultClusterId(defaultClusterId);
         }
         else {
             logConsole("New device");

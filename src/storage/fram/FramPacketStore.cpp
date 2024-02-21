@@ -42,7 +42,7 @@ bool FramPacketStore::saveMessageTimetamp(const char* senderId, const char* mess
     for (int packetNum = 0; packetNum < numPackets; packetNum++) {
         populateKeyBuffer(senderId, messageId, packetNum, status);
         uint8_t slotNum = datastore->getRecordNum(ZonePacket, keyBuffer);
-        if (slotNum >= 0) {
+        if (slotNum != FRAM_NULL) {
             if(datastore->readRecord(&packetBuffer, slotNum)) {
                 packetBuffer.setTimestamp(sortableTime);
                 datastore->writeRecord(&packetBuffer, slotNum);
@@ -97,7 +97,7 @@ int FramPacketStore::readPacket (const char* senderId, const char* messageId, in
 int FramPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, PacketStatus status) {
     populateKeyBuffer(senderId, messageId, packetNum, status);
     uint8_t slotNum = datastore->getRecordNum(ZonePacket, keyBuffer);
-    if (slotNum >= 0) {
+    if (slotNum != FRAM_NULL) {
         if (!datastore->readRecord(&packetBuffer, slotNum)) {
             logConsole("Read failed!");
         }
