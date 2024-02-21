@@ -845,9 +845,12 @@ bool Chatter::readHardwareDeviceId () {
     memset(uniqueDeviceId, 0, 32);
     uint8_t rawId[16];
 
+#if defined(ARDUINO_UNOR4_WIFI)
+    memcpy(rawId, "replacewithrfid0", 16);
+#elif !defined(ARDUINO_UNOR4_WIFI)
     uniqueDeviceIdSize = min(16, UniqueIDsize);
     memcpy(rawId, UniqueID, uniqueDeviceIdSize);
-
+#endif
     // hexify the unique id
     uint8_t appended = 0;
     while (uniqueDeviceIdSize < 16) {

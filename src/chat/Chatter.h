@@ -25,7 +25,10 @@
 #include "../storage/fram/CachingFramDatastore.h"
 
 #include "../rtc/RTClockBase.h"
+
+#if !defined(ARDUINO_UNOR4_WIFI)
 #include <ArduinoUniqueID.h>
+#endif
 
 #ifndef CHATTER_H
 #define CHATTER_H
