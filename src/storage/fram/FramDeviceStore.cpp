@@ -8,6 +8,7 @@ bool FramDeviceStore::loadBuffer (const char* deviceKeyName, char* buffer) {
     uint8_t slotNum = datastore->getRecordNum(ZoneDevice, (uint8_t*)deviceKeyName);
     if (slotNum >= 0 && datastore->readRecord(&configBuffer, slotNum)) {
         memcpy(buffer, configBuffer.getValue(), FRAM_DEVICE_DATASIZE_USABLE);
+        return true;
     }
 
     logConsole("value not yet set");
@@ -38,7 +39,7 @@ bool FramDeviceStore::setDeviceName (char* newName) {
     return success;
 }
 
-bool FramDeviceStore::setDefaultCluster (char* newDefaultCluster) {
+bool FramDeviceStore::setDefaultClusterId (char* newDefaultCluster) {
     bool success = saveConfig(FRAM_DEV_KEY_DEFAULT_CLUSTER, newDefaultCluster);
     if (success) {
         logConsole("default cluster saved");
@@ -66,10 +67,9 @@ bool FramDeviceStore::saveConfig (const char* deviceKeyName, char* newVal) {
     configBuffer.setValue((uint8_t*)newVal);
 
     uint8_t slot = datastore->getRecordNum(ZoneDevice, (uint8_t*)deviceKeyName);
-    if (slot == -1) {
+    if (slot == FRAM_NULL) {
         return datastore->writeToNextSlot(&configBuffer);
     }
-
     return datastore->writeRecord(&configBuffer, slot);
 }
 

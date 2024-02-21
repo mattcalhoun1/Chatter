@@ -14,12 +14,12 @@
 class PseudoHsm : public Hsm {
     public:
         PseudoHsm (DeviceStore* _deviceStore, ClusterStore* _clusterStore) { deviceStore = _deviceStore; clusterStore = _clusterStore; }
-        bool init(cont char* clusterId);
+        bool init(const char* clusterId);
 
         long getRandomLong();
 
         bool setClusterId (const char* clusterId);
-        const char* getClusterId (return clusterId);
+        const char* getClusterId () {return clusterId;}
 
         bool loadPublicKey(byte* publicKeyBuffer);
         bool verifySignature(uint8_t* hash, uint8_t* signature, const byte* publicKey);
@@ -33,6 +33,11 @@ class PseudoHsm : public Hsm {
         void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
         void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
 
+        bool generateSymmetricKey (uint8_t* keyBuffer, uint8_t length);
+
+        bool factoryReset ();
+
+        static int rng(uint8_t *dest, unsigned size);
     protected:
         DeviceStore* deviceStore;
         ClusterStore* clusterStore;
@@ -50,6 +55,8 @@ class PseudoHsm : public Hsm {
 
         void logConsole(const char* msg);
         uint8_t volatileEncryptionKey[ENC_SYMMETRIC_KEY_BUFFER_SIZE];
+
+        void generateRandomBytes (uint8_t* buffer, int numBytes);
 
 };
 

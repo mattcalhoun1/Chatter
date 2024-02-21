@@ -18,6 +18,8 @@ class EncryptionAlgo {
     virtual void decrypt(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
     virtual void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
     virtual void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
+
+    virtual bool generateSymmetricKey (uint8_t* keyBuffer, uint8_t length) = 0;
 };
 
 #endif

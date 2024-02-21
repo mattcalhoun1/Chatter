@@ -90,6 +90,16 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
     Serial.println("Key not written to fram");
   }
 
+  Serial.print("At slot: ");
+  Serial.print(slot);
+  Serial.print(", position: ");
+  Serial.print(dataPosition);
+  Serial.print(", Wrote key: "); 
+  for (int i = 0; i < zoneKeySizes[record->getZone()]; i++) {
+    Serial.print((char)unencryptedBuffer[i]);
+  }
+  Serial.println("");
+
   // serialize into unencrypted byffer
   memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
   uint16_t actualDataSize = record->serialize(unencryptedBuffer);
@@ -111,11 +121,11 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
 
 bool FramData::readRecord (FramRecord* record, uint8_t slot) {
   // read the key
-  uint8_t recordKey[FRAM_PACKET_KEYSIZE];
-  memset(recordKey, 0, FRAM_PACKET_KEYSIZE);
+  //uint8_t recordKey[FRAM_PACKET_KEYSIZE];
+  memset(keyBuffer, 0, FRAM_MAX_KEYSIZE); // for temporarily holding keys, various purposes. choosing largest key size
 
   uint16_t dataPosition = getFramKeyLocation(record->getZone(), slot);
-  fram.read(dataPosition, recordKey, zoneKeySizes[record->getZone()]);
+  fram.read(dataPosition, keyBuffer, zoneKeySizes[record->getZone()]);
 
     dataPosition = getFramDataLocation(record->getZone(), slot);
     memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
@@ -132,7 +142,7 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
   }
 
   // ingest the record
-  record->deserialize(recordKey, unencryptedBuffer);
+  record->deserialize(keyBuffer, unencryptedBuffer);
   return true;
 }
 
@@ -220,6 +230,14 @@ void FramData::decryptVolatile(uint8_t* encrypted, int encryptedLength) {
   chachaVolatile.decrypt (unencryptedBuffer, encrypted, encryptedLength);
 }
 
+bool FramData::clearAllZones () {
+    bool allClear = true;
+    for (uint8_t i = 0; i < FRAM_NUM_ZONES; i++) {
+        allClear = allClear && clearZone(zoneId[i]);
+    }
+    return allClear;
+}
+
 bool FramData::clearZone (FramZone zone) {
   // set the metadata back to zeros so the entire zone becomes unused
   uint16_t addr = zoneLocations[zone];
@@ -233,11 +251,3 @@ bool FramData::clearZone (FramZone zone) {
 
   fram.write(addr+1, zoneSlots[zone] - 1);
 }
-
-/*
-    uint32_t zoneLocations[3] = { FRAM_CLUSTER_LOC, FRAM_TRUST_LOC, FRAM_CLUSTER_PACKET_LOC };
-    uint8_t zoneKeySizes[3] = { FRAM_CLUSTER_KEYSIZE, FRAM_TRUST_KEYSIZE, FRAM_PACKET_KEYSIZE };
-    uint8_t zoneSlots[3] = { FRAM_CLUSTER_SLOTS, FRAM_TRUST_SLOTS, FRAM_PACKET_SLOTS };
-    uint8_t zoneDataSizes[3] = { FRAM_CLUSTER_DATASIZE, FRAM_TRUST_DATASIZE, FRAM_PACKET_DATASIZE };
-    uint8_t zoneEncrypted[3] = { FRAM_CLUSTER_ENCRYPTED, FRAM_TRUST_ENCRYPTED, FRAM_PACKET_ENCRYPTED };
-*/

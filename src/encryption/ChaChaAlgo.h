@@ -19,6 +19,7 @@ class ChaChaAlgo : public EncryptionAlgo {
     void prepareForEncryption (uint8_t* unencryptedBuffer, int unencryptedBufferSize, uint8_t* encryptedBuffer, int encryptedBufferSize);
     void prepareForVolatileEncryption (uint8_t* unencryptedBuffer, int unencryptedBufferSize, uint8_t* encryptedBuffer, int encryptedBufferSize);
 
+    bool generateSymmetricKey (uint8_t* keyBuffer, uint8_t length);
   protected:
     void logConsole(const char* msg);
     uint8_t iv[ENC_IV_SIZE];

@@ -24,7 +24,7 @@ bool ClusterAdmin::handleAdminRequest () {
                 // check if this device id is known
                 char knownDeviceId[CHATTER_DEVICE_ID_SIZE+1];
                 char knownAlias[CHATTER_ALIAS_NAME_SIZE+1];
-                bool trustedKey = chatter->getTrustStore()->findDeviceId ((char*)chatter->getEncryptor()->getPublicKeyBuffer(), knownDeviceId);
+                bool trustedKey = chatter->getTrustStore()->findDeviceId ((const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer(), chatter->getClusterId(), knownDeviceId);
                 if(trustedKey) {
                     chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
                     /*Serial.print("We Know: ");
@@ -34,12 +34,12 @@ bool ClusterAdmin::handleAdminRequest () {
 
                     // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
                     // if it's sync, we are good to proceed
-                    return syncDevice(knownDeviceId, knownAlias);
+                    return syncDevice(chatter->getClusterId(), knownDeviceId, knownAlias);
                 } 
                 else {
                     // we don't know this key, which is to be expected if it's on onboard
                     if (requestType == AdminRequestOnboard) {
-                        return onboardNewDevice(deviceType, (const char*)chatter->getEncryptor()->getPublicKeyBuffer());
+                        return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer());
                     }
                 }
             }
@@ -97,56 +97,29 @@ ChatterDeviceType ClusterAdmin::extractDeviceType(const char* request) {
 
 bool ClusterAdmin::genesis () {
     Serial.println("Creating a new cluster. Proceed with caution.");
-    char newNetworkId[9];
-    while (!getUserInput ("New Cluster ID, 5 upper-case letters (Ex: USCAL):", newNetworkId, 5, 5, false, false) ) {
+    uint8_t clusterIdLength = CHATTER_LOCAL_NET_ID_SIZE + CHATTER_GLOBAL_NET_ID_SIZE;
+    while (!getUserInput ("New Cluster ID, 5 upper-case letters (Ex: USCAL):", clusterId, clusterIdLength, clusterIdLength, false, false) ) {
         delay(10);
     }
 
     // device id is network info + 000 for this genesis device
-    memset(newNetworkId+5, '0', 3);
-    newNetworkId[8] = '\0';
+    memcpy(newDeviceId, clusterId, clusterIdLength);
+    memset(newDeviceId+clusterIdLength, '0', 3);
+    newDeviceId[CHATTER_DEVICE_ID_SIZE] = '\0';
 
-    // save it all in the atecc
     Serial.print("New device ID: ");
-    Serial.print(newNetworkId);
+    Serial.print(newDeviceId);
     Serial.println("");
+
+    memcpy(clusterId, newDeviceId, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+    clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE] = 0;
 
     // device id setup
     Encryptor* encryptor = chatter->getEncryptor();
-    encryptor->setTextSlotBuffer(newNetworkId);
-    encryptor->saveDataSlot(DEVICE_ID_SLOT);
 
-    // generate a new key
-    // 0 - 9, A - F
-    // ascii 0 == 48
-    // ascii A == 65
-    char newKey[33];
-    newKey[32] = '\0';
-    // this loop assumes the key slot and iv slot are adjacent
-    for (int keySlot = ENCRYPTION_KEY_SLOT; keySlot <= ENCRYPTION_IV_SLOT; keySlot++) {
-        for (int i = 0; i < 32; i++) {
-            int nextDigit = (encryptor->getRandom() % 16);
-            if (nextDigit < 6) {
-                // char A-F
-                newKey[i] = (char)(nextDigit + 65);
-            }
-            else {
-                // number 0-9
-                newKey[i] = (char)(nextDigit - 6 + 48);
-            }
-        }
-
-        Serial.print("New key: ");
-        Serial.print(newKey);
-        Serial.println("");
-
-        // update the symmetric key
-        encryptor->setDataSlotBuffer(newKey);
-        if (encryptor->saveDataSlot(keySlot)) {
-            Serial.println("Symmetric Key Updated");
-        }
-
-    }
+    // generate a new key/iv
+    chatter->getHsm()->generateSymmetricKey(symmetricKey, ENC_SYMMETRIC_KEY_SIZE);
+    chatter->getHsm()->generateSymmetricKey(iv, ENC_IV_SIZE);
 
     char loraFrequency[6];
     memset(loraFrequency, 0, 6);
@@ -158,36 +131,19 @@ bool ClusterAdmin::genesis () {
             delay(10);
         }
     }
-    encryptor->setTextSlotBuffer(loraFrequency);
-    if(encryptor->saveDataSlot(LORA_FREQUENCY_SLOT)) {
-        Serial.println("Lora Frequency Saved");
-    }
-    else {
-        Serial.println("Lora Frequency Failed!");
-    }
+    frequency = atof(loraFrequency);
 
-    char ssid[WIFI_SSID_MAX_LEN];
-    char pw[WIFI_PASSWORD_MAX_LEN];
-    memset(ssid, 0, WIFI_SSID_MAX_LEN);
-    memset(pw, 0, WIFI_PASSWORD_MAX_LEN);
+    memset(wifiSsid, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+    memset(wifiCred, 0, CHATTER_WIFI_STRING_MAX_SIZE);
 
-    while (!getUserInput ("WiFi Network SSID:", ssid, 5, WIFI_SSID_MAX_LEN - 1, true, true) ) {
+    while (!getUserInput ("WiFi Network SSID:", wifiSsid, 5, CHATTER_WIFI_STRING_MAX_SIZE - 1, true, true) ) {
         delay(10);
     }
 
-    while (!getUserInput ("WiFi Network Password:", pw, 5, WIFI_PASSWORD_MAX_LEN - 1, true, true) ) {
+    while (!getUserInput ("WiFi Network Password:", wifiCred, 5, CHATTER_WIFI_STRING_MAX_SIZE - 1, true, true) ) {
         delay(10);
     }
     
-    String newWifiCreds = String(ssid) + String(ENCRYPTION_CRED_DELIMITER) + String(pw);
-    encryptor->setTextSlotBuffer(newWifiCreds.c_str());
-    if(encryptor->saveDataSlot(WIFI_SSID_SLOT)) {
-        Serial.println("WiFi Config Saved: " + newWifiCreds);
-    }
-    else {
-        Serial.println("WiFi Config Failed!");
-    }
-
     char newDate[13]; //yymmddhhmmss
     while (!getUserInput ("Time (yymmddhhmmss, ex: 241231135959):", newDate, 12, 12, false, false) ) {
         delay(10);
@@ -196,11 +152,18 @@ bool ClusterAdmin::genesis () {
     
     Serial.println("New Date: " + String(chatter->getRtc()->getSortableTime()));
 
-    // clear out existing truststore, and add self with new id
-    chatter->getTrustStore()->clearTruststore();
-    encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
-    encryptor->hexify(encryptor->getPublicKeyBuffer(), ENC_PUB_KEY_SIZE);
-    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getHexBuffer(), true);
+    //chatter->getTrustStore()->clearTruststore();
+    encryptor->loadPublicKey();
+
+    Serial.println("Adding self to truststore");
+    chatter->getHsm()->loadPublicKey(pubKey);
+    chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
+    
+    Serial.println("Adding cluster to storage");
+    chatter->getClusterStore()->addCluster (clusterId, alias, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull);
+
+    Serial.println("Making default cluster");
+    chatter->getDeviceStore()->setDefaultClusterId(clusterId);
 
     Serial.println("Genesis Complete! Ready to onboard devices.");
 
@@ -213,86 +176,44 @@ bool ClusterAdmin::genesisRandom () {
         Serial.println("Chatter is null!");
     }
 
-    Encryptor* encryptor = chatter->getEncryptor();
+    //Encryptor* encryptor = chatter->getEncryptor();
+    PseudoHsm hsm = PseudoHsm(chatter->getDeviceStore(), chatter->getClusterStore());
+    hsm.factoryReset();
 
-    Serial.println("Generating random number");
-    Serial.println("A random number: " + String(encryptor->getRandom()));
     // global network id = US for now
     // Generate a random local network id, ascii 65-90 inclusive
-    char newNetworkId[9];
-    newNetworkId[0] = 'U';
-    newNetworkId[1] = 'S';
+    newDeviceId[0] = 'U';
+    newDeviceId[1] = 'S';
 
+    Serial.println("Generating new cluster id");
     for (int i = 0; i < 3; i++) {
-        int nextDigit = (encryptor->getRandom() % 26) + 65;
-        newNetworkId[i+2] = (char)nextDigit;
+        int nextDigit = (hsm.getRandomLong() % 26) + 65;
+        newDeviceId[i+2] = (char)nextDigit;
     }
     // device id is network info + 000 for this genesis device
-    memset(newNetworkId+5, '0', 3);
-    newNetworkId[8] = '\0';
+    memset(newDeviceId+5, '0', 3);
+    newDeviceId[8] = '\0';
 
     // save it all in the atecc
     Serial.print("New device ID: ");
-    Serial.print(newNetworkId);
-    Serial.println("");
+    Serial.println(newDeviceId);
 
-    // device id setup
-    encryptor->setTextSlotBuffer(newNetworkId);
-    encryptor->saveDataSlot(DEVICE_ID_SLOT);
+    memcpy(clusterId, newDeviceId, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
+    clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE] = 0;
 
     // generate a new key
-    // 0 - 9, A - F
-    // ascii 0 == 48
-    // ascii A == 65
-    char newKey[33];
-    newKey[32] = '\0';
-    // this loop assumes the key slot and iv slot are adjacent
-    for (int keySlot = ENCRYPTION_KEY_SLOT; keySlot <= ENCRYPTION_IV_SLOT; keySlot++) {
-        for (int i = 0; i < 32; i++) {
-            int nextDigit = (encryptor->getRandom() % 16);
-            if (nextDigit < 6) {
-                // char A-F
-                newKey[i] = (char)(nextDigit + 65);
-            }
-            else {
-                // number 0-9
-                newKey[i] = (char)(nextDigit - 6 + 48);
-            }
-        }
+    // generate a new key/iv
+    Serial.println("Generating symmetric key");
+    hsm.generateSymmetricKey(symmetricKey, ENC_SYMMETRIC_KEY_SIZE);
+    hsm.generateSymmetricKey(iv, ENC_IV_SIZE);
+    Serial.println("Finished symmetric key");
 
-        Serial.print("New key: ");
-        Serial.print(newKey);
-        Serial.println("");
+    frequency = 915.0;
 
-        // update the symmetric key
-        encryptor->setDataSlotBuffer(newKey);
-        if (encryptor->saveDataSlot(keySlot)) {
-            Serial.println("Symmetric Key Updated");
-        }
-
-    }
-
-    encryptor->setTextSlotBuffer("915.0");
-    if(encryptor->saveDataSlot(LORA_FREQUENCY_SLOT)) {
-        Serial.println("Lora Frequency Saved");
-    }
-    else {
-        Serial.println("Lora Frequency Failed!");
-    }
-
-    char ssid[WIFI_SSID_MAX_LEN];
-    char pw[WIFI_PASSWORD_MAX_LEN];
-    memset(ssid, 0, WIFI_SSID_MAX_LEN);
-    memset(pw, 0, WIFI_PASSWORD_MAX_LEN);
-
-    String newWifiCreds = String("xxx") + String(ENCRYPTION_CRED_DELIMITER) + String("xxx");
-    encryptor->setTextSlotBuffer(newWifiCreds.c_str());
-    if(encryptor->saveDataSlot(WIFI_SSID_SLOT)) {
-        Serial.println("WiFi Config Saved: " + newWifiCreds);
-    }
-    else {
-        Serial.println("WiFi Config Failed!");
-    }
+    memset(wifiSsid, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+    memset(wifiCred, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+    memcpy(wifiSsid, "none", 4);
+    memcpy(wifiCred, "none", 4);
 
     char newDate[13]; //yymmddhhmmss
     // default to 1/1/2024 if clock not set. will have to fix later
@@ -301,28 +222,42 @@ bool ClusterAdmin::genesisRandom () {
         Serial.println("New Date: " + String(chatter->getRtc()->getSortableTime()));
     }
     
+    Serial.println("Adding self to truststore");
 
-    // clear out existing truststore, and add self with new id
-    chatter->getTrustStore()->clearTruststore();
-    encryptor->loadPublicKey(CHATTER_SIGN_PK_SLOT);
-    encryptor->hexify(encryptor->getPublicKeyBuffer(), ENC_PUB_KEY_SIZE);
-    chatter->getTrustStore()->addTrustedDevice(newNetworkId, BASE_LORA_ALIAS, (const char*)encryptor->getHexBuffer(), true);
+    // dump pub key into key buffer
+    hsm.loadPublicKey(pubKey);
+    Serial.print("This Device Pub Key: ");
+    for (uint8_t i = 0; i < ENC_PUB_KEY_SIZE; i++) {
+        Serial.print(pubKey[i]); Serial.print(" ");
+    }
+    Serial.println("");
+
+    chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
+    
+    Serial.println("Adding cluster to storage");
+    chatter->getClusterStore()->addCluster (clusterId, alias, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull);
+
+    Serial.println("Making default cluster");
+    chatter->getDeviceStore()->setDeviceName(newDeviceId);
+    chatter->getDeviceStore()->setDefaultClusterId(clusterId);
 
     Serial.println("Genesis Complete! Ready to onboard devices.");
 
     return true;
 }
 
-bool ClusterAdmin::syncDevice (const char* deviceId, const char* alias) {
+bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, const char* alias) {
     dumpDevice(deviceId, alias);
-    dumpTruststore();
-    dumpSymmetricKey();
-    dumpWiFi();
+    dumpTruststore(hostClusterId);
+    dumpSymmetricKey(hostClusterId);
+    dumpWiFi(hostClusterId);
     dumpTime();
-    dumpFrequency();
+    dumpFrequency(hostClusterId);
+    dumpChannels(hostClusterId);
+    dumpAuthType(hostClusterId);
 }
 
-bool ClusterAdmin::dumpTruststore () {
+bool ClusterAdmin::dumpTruststore (const char* hostClusterId) {
     TrustStore* trustStore = chatter->getTrustStore();
     Encryptor* encryptor = chatter->getEncryptor();
 
@@ -330,77 +265,108 @@ bool ClusterAdmin::dumpTruststore () {
     char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
     for (int i = 0; i < others.getSize(); i++) {
         const String& otherDeviceStr = others[i];
-        // try loading public key for that
+        // if its pub key of device on this cluser, dump it
         const char* otherDeviceId = otherDeviceStr.c_str();
-        trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
-        trustStore->loadPublicKey(otherDeviceId, (char*)encryptor->getPublicKeyBuffer());
+        if (memcmp(otherDeviceId, hostClusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE) == 0) {
+            trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
+            trustStore->loadPublicKey(otherDeviceId, pubKey);
 
-        Serial.print(CLUSTER_CFG_TRUST);
-        Serial.print(CLUSTER_CFG_DELIMITER);
-        Serial.print(otherDeviceId);
-        Serial.print((char*)encryptor->getPublicKeyBuffer());
-        Serial.print(otherDeviceAlias);
-        Serial.println("");
+            Serial.print(CLUSTER_CFG_TRUST);
+            Serial.print(CLUSTER_CFG_DELIMITER);
+            Serial.print(otherDeviceId);
+
+            encryptor->hexify(pubKey, ENC_PUB_KEY_SIZE);
+            memset(pubKey, 0, ENC_PUB_KEY_SIZE);
+            for (uint8_t i = 0; i < ENC_PUB_KEY_SIZE*2; i++) {
+                Serial.print(encryptor->getHexBuffer()[i]);
+            }
+            encryptor->clearHexBuffer(); // dont leave key in hex buffer
+
+            Serial.print((char*)encryptor->getPublicKeyBuffer());
+            Serial.print(otherDeviceAlias);
+            Serial.println("");
+        }
     }
     return true;
 }
 
-bool ClusterAdmin::dumpSymmetricKey() {
+bool ClusterAdmin::dumpSymmetricKey(const char* hostClusterId) {
     Serial.print(CLUSTER_CFG_KEY);
     Serial.print(CLUSTER_CFG_DELIMITER);
+    chatter->getClusterStore()->loadSymmetricKey(hostClusterId, symmetricKey);
+
     Encryptor* encryptor = chatter->getEncryptor();
-    if (encryptor->loadDataSlot(ENCRYPTION_KEY_SLOT)) {
-        encryptor->logBufferHex(encryptor->getDataSlotBuffer(), ENC_DATA_SLOT_SIZE);
+    encryptor->hexify(symmetricKey, ENC_PUB_KEY_SIZE);
+    memset(symmetricKey, 0, ENC_PUB_KEY_SIZE);
+    for (uint8_t i = 0; i < ENC_PUB_KEY_SIZE*2; i++) {
+        Serial.print(encryptor->getHexBuffer()[i]);
     }
+    encryptor->clearHexBuffer(); // dont leave key in hex buffer
     Serial.println("");
 
     Serial.print(CLUSTER_CFG_IV);
     Serial.print(CLUSTER_CFG_DELIMITER);
-    if (encryptor->loadDataSlot(ENCRYPTION_IV_SLOT)) {
-        encryptor->logBufferHex(encryptor->getDataSlotBuffer(), ENC_DATA_SLOT_SIZE);
+    encryptor->hexify(iv, ENC_IV_SIZE);
+    memset(iv, 0, ENC_PUB_KEY_SIZE);
+
+    for (uint8_t i = 0; i < ENC_IV_SIZE*2; i++) {
+        Serial.print(encryptor->getHexBuffer()[i]);
     }
+    encryptor->clearHexBuffer(); // dont leave key in hex buffer
     Serial.println("");
 }
 
-bool ClusterAdmin::dumpWiFi () {
-    Encryptor* encryptor = chatter->getEncryptor();
-    encryptor->loadDataSlot(WIFI_SSID_SLOT);
-    char ssid[32];
-    encryptor->getTextSlotBuffer(ssid);
-    Serial.print(CLUSTER_CFG_WIFI);
+bool ClusterAdmin::dumpWiFi (const char* hostClusterId) {
+    // CLUSTER_CFG_WIFI_SSID , CLUSTER_CFG_WIFI_CRED
+    chatter->getClusterStore()->loadWifiSsid(hostClusterId, wifiSsid);
+    chatter->getClusterStore()->loadWifiCred(hostClusterId, wifiCred);
+
+    Serial.print(CLUSTER_CFG_WIFI_SSID);
     Serial.print(CLUSTER_CFG_DELIMITER);
-    Serial.print(ssid);
-    Serial.println("");
+    Serial.println(wifiSsid);
+    Serial.print(CLUSTER_CFG_WIFI_CRED);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.println(wifiCred);
 }
 
-bool ClusterAdmin::dumpFrequency () {
-    Encryptor* encryptor = chatter->getEncryptor();
-    encryptor->loadDataSlot(LORA_FREQUENCY_SLOT);
-    char frequency[32];
-    encryptor->getTextSlotBuffer(frequency);
-    frequency[5] = '\0';
+bool ClusterAdmin::dumpFrequency (const char* hostClusterId) {
     Serial.print(CLUSTER_CFG_FREQ);
     Serial.print(CLUSTER_CFG_DELIMITER);
-    Serial.println(frequency);
+    Serial.println(chatter->getClusterStore()->getFrequency(hostClusterId));
 }
+
+bool ClusterAdmin::dumpChannels (const char* hostClusterId) {
+    Serial.print(CLUSTER_CFG_PRIMARY);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.println((char)chatter->getClusterStore()->getPreferredChannel(hostClusterId));
+
+    Serial.print(CLUSTER_CFG_SECONDARY);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.println((char)chatter->getClusterStore()->getSecondaryChannel(hostClusterId));
+}
+
+bool ClusterAdmin::dumpAuthType (const char* hostClusterId) {
+    Serial.print(CLUSTER_CFG_AUTH);
+    Serial.print(CLUSTER_CFG_DELIMITER);
+    Serial.println((char)chatter->getClusterStore()->getAuthType(hostClusterId));
+}
+
 
 bool ClusterAdmin::dumpTime () {
     Serial.print(CLUSTER_CFG_TIME);
     Serial.print(CLUSTER_CFG_DELIMITER);
-    Serial.print(chatter->getRtc()->getSortableTime());
-    Serial.println("");
+    Serial.println(chatter->getRtc()->getSortableTime());
 }
 
 bool ClusterAdmin::dumpDevice (const char* deviceId, const char* alias) {
     Serial.print(CLUSTER_CFG_DEVICE);
     Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(deviceId);
-    Serial.print(alias);
-    Serial.println("");
+    Serial.println(alias);
 }
 
 
-bool ClusterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey) {
+bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey) {
     Serial.println("We will onboard this device");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
@@ -437,8 +403,10 @@ bool ClusterAdmin::onboardNewDevice (ChatterDeviceType deviceType, const char* d
     Serial.println("This will be: " + String(newAddress));
     Serial.println("Alias: " + String(alias));
 
+
+
     if(chatter->getTrustStore()->addTrustedDevice(newAddress, alias, devicePublicKey, true)) {
-        syncDevice (newAddress, alias);
+        syncDevice (hostClusterId, newAddress, alias);
     }
 
 

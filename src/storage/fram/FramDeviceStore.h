@@ -8,9 +8,9 @@
 #ifndef FRAMDEVICESTORE_H
 #define FRAMDEVICESTORE_H
 
-#define FRAM_DEV_KEY_NAME "CHATTERDEVCNAME"
-#define FRAM_DEV_KEY_DEFAULT_CLUSTER "CDEFAULTCLUSTER"
-#define FRAM_DEV_KEY_SIGN_KEY "CHATTSIGNINGKEY"
+#define FRAM_DEV_KEY_NAME "CHATTERDEVCCNAME"
+#define FRAM_DEV_KEY_DEFAULT_CLUSTER "DEFAULTCLUSTERID"
+#define FRAM_DEV_KEY_SIGN_KEY "CHATTERSINGPVKEY"
 
 class FramDeviceStore : public DeviceStore {
     public:
@@ -23,7 +23,7 @@ class FramDeviceStore : public DeviceStore {
         bool loadSigningKey (uint8_t* buffer);
 
         bool setDeviceName (char* newName);
-        bool setDefaultCluster (char* newDefaultCluster);
+        bool setDefaultClusterId (char* newDefaultCluster);
         bool setSigningKey (uint8_t* newSigningKey);
 
     protected:

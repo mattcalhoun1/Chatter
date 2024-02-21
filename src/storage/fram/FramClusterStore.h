@@ -22,12 +22,13 @@ class FramClusterStore : public ClusterStore {
 
         ClusterChannel getPreferredChannel (const char* clusterId);
         ClusterChannel getSecondaryChannel (const char* clusterId);
+        ClusterAuthType getAuthType (const char* clusterId);
 
         bool loadSymmetricKey (const char* clusterId, uint8_t* buffer);
         bool loadIv (const char* clusterId, uint8_t* buffer);
 
         bool deleteCluster (const char* clusterId);
-        bool addCluster (const char* clusterId,const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel);
+        bool addCluster (const char* clusterId,const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType);
 
     protected:
         FramData* datastore;

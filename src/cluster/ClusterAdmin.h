@@ -24,14 +24,16 @@ class ClusterAdmin : public ClusterManagerBase {
         bool genesisRandom ();
 
     private:
-        bool syncDevice (const char* deviceId, const char* alias);
-        bool onboardNewDevice (ChatterDeviceType deviceType, const char* devicePublicKey); 
+        bool syncDevice (const char* hostClusterId, const char* deviceId, const char* alias);
+        bool onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey); 
 
-        bool dumpTruststore (); // writes to serial
-        bool dumpSymmetricKey();
+        bool dumpTruststore (const char* hostClusterId); // writes to serial
+        bool dumpSymmetricKey(const char* hostClusterId);
         bool dumpTime ();
-        bool dumpWiFi ();
-        bool dumpFrequency ();
+        bool dumpWiFi (const char* hostClusterId);
+        bool dumpFrequency (const char* hostClusterId);
+        bool dumpChannels (const char* hostClusterId);
+        bool dumpAuthType (const char* hostClusterId);
         bool dumpDevice (const char* deviceId, const char* alias);
         AdminRequestType extractRequestType (const char* request);
         ChatterDeviceType extractDeviceType (const char* request);

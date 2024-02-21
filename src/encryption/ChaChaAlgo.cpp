@@ -49,3 +49,15 @@ void ChaChaAlgo::logConsole(const char* msg) {
         Serial.println(msg);
     }
 }
+
+bool ChaChaAlgo::generateSymmetricKey (uint8_t* keyBuffer, uint8_t length) {
+    randomSeed(millis());
+    for (uint8_t i = 0; i < length; i++) {
+        keyBuffer[i] = random(0, 256);
+
+        // reseed just to be a little more random
+        randomSeed(millis() - keyBuffer[i]);
+    }
+
+    return true;
+}

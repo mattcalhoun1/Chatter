@@ -23,7 +23,7 @@
 #define FRAM_DEVICE_VOLATILE false
 #define FRAM_DEVICE_SLOTS 10
 
-#define FRAM_CLUSTER_LOC (FRAM_DEVICE_KEYSIZE + FRAM_DEVICE_DATASIZE) * FRAM_DEVICE_SLOTS + FRAM_ZONE_METADATA_SIZE
+#define FRAM_CLUSTER_LOC FRAM_DEVICE_LOC + (FRAM_DEVICE_KEYSIZE + FRAM_DEVICE_DATASIZE) * FRAM_DEVICE_SLOTS + FRAM_ZONE_METADATA_SIZE
 #define FRAM_CLUSTER_KEYSIZE STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1 // ex: USABCA for cluster USABC, active status
 #define FRAM_CLUSTER_DATASIZE 128
 #define FRAM_CLUSTER_ENCRYPTED true
@@ -33,7 +33,7 @@
 #define FRAM_ENC_BUFFER_SIZE 174
 
 #define FRAM_TRUST_FLAGS 3 // number of trust flags (channel(s), etc)
-#define FRAM_TRUST_LOC (FRAM_CLUSTER_KEYSIZE + FRAM_CLUSTER_DATASIZE) * FRAM_CLUSTER_SLOTS + FRAM_ZONE_METADATA_SIZE
+#define FRAM_TRUST_LOC FRAM_CLUSTER_LOC + (FRAM_CLUSTER_KEYSIZE + FRAM_CLUSTER_DATASIZE) * FRAM_CLUSTER_SLOTS + FRAM_ZONE_METADATA_SIZE
 #define FRAM_TRUST_KEYSIZE CHATTER_DEVICE_ID_SIZE + 1 // +1 for status
 #define FRAM_TRUST_DATASIZE ENC_PUB_KEY_SIZE+CHATTER_ALIAS_NAME_SIZE + FRAM_TRUST_FLAGS
 #define FRAM_TRUST_ENCRYPTED false
@@ -53,7 +53,7 @@
 //    or 153 packets. To be save, we'll keep this at 120 packets, and should have empty area at the end of fram
 
 
-#define FRAM_PACKET_LOC (FRAM_TRUST_KEYSIZE + FRAM_TRUST_DATASIZE) * FRAM_TRUST_SLOTS + FRAM_ZONE_METADATA_SIZE // 15596 
+#define FRAM_PACKET_LOC FRAM_TRUST_LOC + (FRAM_TRUST_KEYSIZE + FRAM_TRUST_DATASIZE) * FRAM_TRUST_SLOTS + FRAM_ZONE_METADATA_SIZE // 15596 
 #define FRAM_PACKET_KEYSIZE CHATTER_DEVICE_ID_SIZE + CHATTER_MESSAGE_ID_SIZE + CHATTER_CHUNK_ID_SIZE + 1 // +1 for packet status
 #define FRAM_PACKET_DATASIZE CHATTER_FULL_BUFFER_LEN + CHATTER_DEVICE_ID_SIZE + FRAM_TS_SIZE + 1 // 1 for the packet length
 #define FRAM_PACKET_ENCRYPTED false
@@ -61,6 +61,7 @@
 #define FRAM_PACKET_SLOTS 90 // total fram usage should be 32336 of 32768
 
 #define FRAM_NULL 255
+#define FRAM_MAX_KEYSIZE FRAM_DEVICE_KEYSIZE
 
 //uint32_t max_addr;
 
@@ -73,6 +74,7 @@ class FramData {
     virtual uint8_t getNumUsedSlots (FramZone zone);
     virtual uint8_t getNextSlot (FramZone zone);
     virtual bool clearZone (FramZone zone);
+    virtual bool clearAllZones ();
 
     bool isRunning () {return running;}
 
@@ -118,6 +120,9 @@ class FramData {
     Adafruit_FRAM_I2C fram;
     //Adafruit_EEPROM_I2C fram;
     bool running = false;
+
+    uint8_t keyBuffer[FRAM_MAX_KEYSIZE]; // for temporarily holding keys, various purposes. choosing largest key size
+
 };
 
 #endif

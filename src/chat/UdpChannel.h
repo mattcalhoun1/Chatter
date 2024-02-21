@@ -25,7 +25,7 @@
 
 class UdpChannel : public ChatterChannel {
     public:
-        UdpChannel (uint8_t channelNum, const char* udpHostName, const char* wifiString, bool logEnabled, ChatStatusCallback* chatStatusCallback);
+        UdpChannel (uint8_t channelNum, const char* udpHostName, const char* ssid, const char* cred, bool logEnabled, ChatStatusCallback* chatStatusCallback);
 
         bool init();
 
@@ -74,8 +74,8 @@ class UdpChannel : public ChatterChannel {
         void sendTimeRequest ();
 
         // low ssid/pw limit
-        char ssid[16];
-        char password[16];
+        char ssid[CHATTER_WIFI_STRING_MAX_SIZE];
+        char password[CHATTER_WIFI_STRING_MAX_SIZE];
 
         char hostName[16];
         bool validWifiConfig = true;

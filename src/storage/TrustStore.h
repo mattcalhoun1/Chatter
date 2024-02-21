@@ -16,13 +16,13 @@ class TrustStore : public StorageBase {
     public:
         virtual bool init () = 0;
         virtual List<String> getDeviceIds() = 0;
-        virtual bool loadPublicKey(const char* deviceId, char* keyBuffer) = 0;
+        virtual bool loadPublicKey(const char* deviceId, uint8_t* keyBuffer) = 0;
         virtual bool loadAlias(const char* deviceId, char* aliasBuffer) = 0;
-        virtual bool addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey) = 0;
-        virtual bool addTrustedDevice (const char* deviceId, const char* alias, const char* key, bool overwrite) = 0;
+        virtual bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey) = 0;
+        virtual bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* key, bool overwrite) = 0;
         virtual bool removeTrustedDevice (const char* deviceId) = 0;
         virtual bool clearTruststore () = 0;
-        virtual bool findDeviceId (const char* key, char* deviceIdBuffer) = 0;
+        virtual bool findDeviceId (const uint8_t* key, const char* clusterId, char* deviceIdBuffer) = 0;
         virtual bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) = 0;
         virtual TrustDeviceChannel getPreferredChannel (const char* deviceId) {return TrustChannelLora;}
         virtual TrustDeviceChannel getSecondaryChannel (const char* deviceId) {return TrustChannelUdp;}

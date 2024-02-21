@@ -10,7 +10,7 @@
 
 class OnboardUdpChannel : public UdpChannel {
     public:
-        OnboardUdpChannel (uint8_t channelNum, const char* udpHostName, const char* wifiString, bool logEnabled, ChatStatusCallback* chatStatusCallback) : UdpChannel(channelNum, udpHostName, wifiString, logEnabled, chatStatusCallback) {}
+        OnboardUdpChannel (uint8_t channelNum, const char* udpHostName, const char* ssid, const char* cred, bool logEnabled, ChatStatusCallback* chatStatusCallback) : UdpChannel(channelNum, udpHostName, ssid, cred, logEnabled, chatStatusCallback) {}
 
     protected:
         void setupWifi ();

@@ -99,8 +99,8 @@ int Encryptor::generateHash(const char* plainText, int inputLength, uint8_t* has
   return hasher.hashSize();
 }
 
-bool Encryptor::setPublicKeyBuffer (const char* publicKey) {
-  hexCharacterStringToBytes(publicKeyBuffer, publicKey, ENC_PUB_KEY_SIZE);
+bool Encryptor::setPublicKeyBuffer (uint8_t* publicKey) {
+    memcpy(publicKeyBuffer, publicKey, ENC_PUB_KEY_SIZE);
 }
 
 bool Encryptor::loadPublicKey() {
@@ -164,9 +164,9 @@ const char* Encryptor::getHexBuffer () {
   return this->hexBuffer;
 }
 
-void Encryptor::hexify (const byte input[], int inputLength) {
+void Encryptor::hexify (char* outputBuffer, const byte input[], int inputLength) {
   static const char characters[] = "0123456789ABCDEF";
-  char* tmpHexBuffer = hexBuffer;
+  char* tmpHexBuffer = outputBuffer;
 
     int totalBytes = 0;
   for (int i = 0; i < inputLength; i++) {
@@ -176,6 +176,14 @@ void Encryptor::hexify (const byte input[], int inputLength) {
     totalBytes += 2;
   }
   *tmpHexBuffer = '\0';// terminate c string
+}
+
+void Encryptor::hexify (const byte input[], int inputLength) {
+    Encryptor::hexify(hexBuffer, input, inputLength);
+}
+
+void Encryptor::clearHexBuffer () {
+    memset(hexBuffer, 0, ENC_HEX_BUFFER_SIZE);
 }
 
 void Encryptor::logBufferHex(const byte input[], int inputLength) {

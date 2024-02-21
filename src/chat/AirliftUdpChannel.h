@@ -10,7 +10,7 @@
 
 class AirliftUdpChannel : public UdpChannel {
     public:
-        AirliftUdpChannel (uint8_t channelNum, const char* udpHostName, const char* wifiString, int _ssPin, int _ackPin, int _resetPin, int _gpi0, bool logEnabled, ChatStatusCallback* chatStatusCallback) : UdpChannel(channelNum, udpHostName, wifiString, logEnabled, chatStatusCallback) {ssPin = _ssPin; ackPin = _ackPin; resetPin = _resetPin; gpi0 = _gpi0; }
+        AirliftUdpChannel (uint8_t channelNum, const char* udpHostName, const char* ssid, const char* cred, int _ssPin, int _ackPin, int _resetPin, int _gpi0, bool logEnabled, ChatStatusCallback* chatStatusCallback) : UdpChannel(channelNum, udpHostName, ssid, cred, logEnabled, chatStatusCallback) {ssPin = _ssPin; ackPin = _ackPin; resetPin = _resetPin; gpi0 = _gpi0; }
     protected:
         void setupWifi ();
 };

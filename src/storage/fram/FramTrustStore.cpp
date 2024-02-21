@@ -3,7 +3,7 @@
 bool FramTrustStore::init () {
 
     // add default device (temp)
-    addTrustedDevice("USCAL000", "Bridge_Lora", "38A1FB9F68FA1CAFA563084CE9C3FB4AE96DA5D024E6A7D987D4206281EBE13CF6FA45ABECB399BA023DFBA9024F435D80DC7B7C162710FF7006A759F35BAF1D");
+    //addTrustedDevice("USCAL000", "Bridge_Lora", "38A1FB9F68FA1CAFA563084CE9C3FB4AE96DA5D024E6A7D987D4206281EBE13CF6FA45ABECB399BA023DFBA9024F435D80DC7B7C162710FF7006A759F35BAF1D");
 
     return true;
 }
@@ -31,7 +31,7 @@ List<String> FramTrustStore::getDeviceIds() {
 }
 
 
-bool FramTrustStore::findDeviceId (const char* key, char* deviceIdBuffer) {
+bool FramTrustStore::findDeviceId (const uint8_t* key, const char* clusterId, char* deviceIdBuffer) {
     // look for that key in the truststore, populate matching device id (if any).
     // return true if a match is found
     uint8_t used = datastore->getNumUsedSlots(ZoneTrust);
@@ -40,10 +40,14 @@ bool FramTrustStore::findDeviceId (const char* key, char* deviceIdBuffer) {
         datastore->readKey(keyBuffer, ZoneTrust, slot);
         if (keyBuffer[STORAGE_DEVICE_ID_LENGTH] == TrustActive) {
             datastore->readRecord(&trustBuffer, slot);
-            if (memcmp(deviceIdBuffer, trustBuffer.getPublicKey(), STORAGE_PUBLIC_KEY_LENGTH) == 0) {
-                memset(deviceIdBuffer, 0, STORAGE_DEVICE_ID_LENGTH + 1);
-                memcpy(deviceIdBuffer, trustBuffer.getDeviceId(), STORAGE_DEVICE_ID_LENGTH);
-                return true;
+            // does the key match
+            if (memcmp(key, trustBuffer.getPublicKey(), STORAGE_PUBLIC_KEY_LENGTH) == 0) {
+                // does the prefix of the device id match
+                if (memcmp(clusterId, trustBuffer.getDeviceId(), CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE) == 0) {
+                    memset(deviceIdBuffer, 0, STORAGE_DEVICE_ID_LENGTH + 1);
+                    memcpy(deviceIdBuffer, trustBuffer.getDeviceId(), STORAGE_DEVICE_ID_LENGTH);
+                    return true;
+                }
             }
         }
     }
@@ -134,7 +138,7 @@ bool FramTrustStore::clearTruststore () {
 }
 
 
-bool FramTrustStore::loadPublicKey(const char* deviceId, char* buff) {
+bool FramTrustStore::loadPublicKey(const char* deviceId, uint8_t* buff) {
     populateKeyBuffer(deviceId);
     uint8_t slotNum = datastore->getRecordNum (ZoneTrust, (uint8_t*)keyBuffer);
     if (slotNum >= 0) {
@@ -172,14 +176,17 @@ bool FramTrustStore::loadAlias(const char* deviceId, char* aliasBuffer) {
     return false;
 }
 
-bool FramTrustStore::addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey) {
+bool FramTrustStore::addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey) {
   return addTrustedDevice (deviceId, alias, publicKey, false);
 }
 
-bool FramTrustStore::addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey, bool overwrite) {
+bool FramTrustStore::addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey, bool overwrite) {
+    logConsole("Adding device to truststore");
+    logConsole(deviceId);
+
     populateKeyBuffer(deviceId);
     uint8_t existingSlot = datastore->getRecordNum(ZoneTrust, (uint8_t*)keyBuffer);
-    if (existingSlot >= 0) {
+    if (existingSlot != FRAM_NULL) {
         if (overwrite) {
             if (datastore->readRecord(&trustBuffer, existingSlot)) {
                 trustBuffer.setAlias(alias);

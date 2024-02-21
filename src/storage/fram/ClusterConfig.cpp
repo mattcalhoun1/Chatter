@@ -41,11 +41,12 @@ void ClusterConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBu
     memcpy(clusterId, recordKey, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
     status = (ClusterStatus)recordKey[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE];
 
-    // data buffer is in the following order (total of 74 bytes)
+    // data buffer is in the following order
     const uint8_t* bufferPos = dataBuffer;
     preferredChannel = (ClusterChannel)bufferPos[0];
     secondaryChannel = (ClusterChannel)bufferPos[1];
-    bufferPos += 2;
+    authType = (ClusterAuthType)bufferPos[2];
+    bufferPos += 3;
 
     memcpy(deviceId, recordKey, CHATTER_DEVICE_ID_SIZE);
     bufferPos += CHATTER_DEVICE_ID_SIZE;
@@ -73,7 +74,8 @@ int ClusterConfig::serialize (uint8_t* dataBuffer) {
     uint8_t* bufferPos = dataBuffer;
     bufferPos[0] = preferredChannel;
     bufferPos[1] = secondaryChannel;
-    bufferPos += 2;
+    bufferPos[2] = authType;
+    bufferPos += 3;
 
     memcpy(bufferPos, deviceId, CHATTER_DEVICE_ID_SIZE);
     bufferPos += CHATTER_DEVICE_ID_SIZE;

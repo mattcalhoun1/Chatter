@@ -31,8 +31,9 @@
 #define ENCRYPTION_KEY_SLOT 10
 #define ENCRYPTION_IV_SLOT 11
 
-#define WIFI_SSID_MAX_LEN 16
-#define WIFI_PASSWORD_MAX_LEN 16
+#define CHATTER_WIFI_STRING_MAX_SIZE 33
+//#define WIFI_SSID_MAX_LEN 16
+//#define WIFI_PASSWORD_MAX_LEN 16
 #define WIFI_HOSTNAME_MAX_LEN 16
 
 #define CHATTER_FULL_BUFFER_LEN 150 // full buffer for holding messages to go out. since encryption can increase size of message, this should be > packet size

@@ -15,10 +15,14 @@ enum ClusterConfigType {
     ClusterTrustStore = 1,
     ClusterKey = 2,
     ClusterIv = 3,
-    ClusterWifi = 4,
-    ClusterFrequency = 5,
-    ClusterTime = 6,
-    ClusterNone = 7
+    ClusterWifiSsid = 4,
+    ClusterWifiCred = 5,
+    ClusterFrequency = 6,
+    ClusterTime = 7,
+    ClusterPrimaryChannel = 8,
+    ClusterSecondaryChannel = 9,
+    ClusterAuth = 10,
+    ClusterNone = 11
 };
 
 class ClusterAssistant : public ClusterManagerBase {
@@ -28,17 +32,8 @@ class ClusterAssistant : public ClusterManagerBase {
 
     protected:
         void sendOnboardRequest();
-        void sendPublicKey(Hsm* hsm);
-        ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, ClusterStore* clusterStore);
-
-        char newDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
-        char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1];
-
-        char trustedDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
-        char alias[CHATTER_ALIAS_NAME_SIZE + 1];
-        char trustedDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
-        char hexEncodedPubKey[ENC_PUB_KEY_SIZE * 2 + 1];
-
+        void sendPublicKey(Hsm* hsm, Encryptor* encryptor);
+        ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor);
 };
 
 #endif

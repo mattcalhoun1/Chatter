@@ -22,6 +22,9 @@ class ClusterConfig : public FramRecord {
     void setSecondaryChannel (ClusterChannel _secondary) {secondaryChannel = _secondary;}
     ClusterChannel getSecondaryChannel () {return secondaryChannel;}
 
+    void setAuthType (ClusterAuthType _authType) {authType = _authType;}
+    ClusterAuthType getAuthType () {return authType;}
+
     void setDeviceId (const char* _deviceId);
     const char* getDeviceId () {return (const char*)deviceId;}
 
@@ -54,6 +57,8 @@ class ClusterConfig : public FramRecord {
 
     ClusterChannel preferredChannel;
     ClusterChannel secondaryChannel;
+    ClusterAuthType authType;
+
     char deviceId[CHATTER_DEVICE_ID_SIZE];
     char frequency[CHATTER_LORA_FREQUENCY_DIGITS];
     uint8_t key[ENC_SYMMETRIC_KEY_SIZE];

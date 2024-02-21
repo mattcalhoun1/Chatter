@@ -103,6 +103,13 @@ ClusterChannel FramClusterStore::getSecondaryChannel (const char* clusterId) {
     return ClusterChannelNone;
 }
 
+ClusterAuthType FramClusterStore::getAuthType (const char* clusterId) {
+    if (loadClusterBuffer(clusterId)) {
+        return clusterBuffer.getAuthType();
+    }
+    return ClusterAuthFull;
+}
+
 bool FramClusterStore::loadSymmetricKey (const char* clusterId, uint8_t* buffer) {
     if (loadClusterBuffer(clusterId)) {
         memcpy(buffer, clusterBuffer.getKey(), ENC_SYMMETRIC_KEY_SIZE);
@@ -141,7 +148,7 @@ bool FramClusterStore::deleteCluster (const char* clusterId) {
     return true; // if not found, its already deleted
 }
 
-bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel) {
+bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) {
     // make sure cluster doesnt already exist
     populateKeyBuffer(clusterId);
 
@@ -163,6 +170,7 @@ bool FramClusterStore::addCluster (const char* clusterId, const char* alias, uin
 
     clusterBuffer.setPreferredChannel(preferredChannel);
     clusterBuffer.setSecondaryChannel(secondaryChannel);
+    clusterBuffer.setAuthType(authType);
     clusterBuffer.setStatus(ClusterActive);
 
     if (datastore->writeToNextSlot(&clusterBuffer)) {

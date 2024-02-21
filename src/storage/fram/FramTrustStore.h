@@ -18,13 +18,13 @@ class FramTrustStore : public TrustStore {
 
         bool init ();
         List<String> getDeviceIds();
-        bool loadPublicKey(const char* deviceId, char* keyBuffer);
+        bool loadPublicKey(const char* deviceId, uint8_t* keyBuffer);
         bool loadAlias(const char* deviceId, char* aliasBuffer);
-        bool addTrustedDevice (const char* deviceId, const char* alias, const char* publicKey);
-        bool addTrustedDevice (const char* deviceId, const char* alias, const char* key, bool overwrite);
+        bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey);
+        bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* key, bool overwrite);
         bool removeTrustedDevice (const char* deviceId);
         bool clearTruststore ();
-        bool findDeviceId (const char* key, char* deviceIdBuffer);
+        bool findDeviceId (const uint8_t* key, const char* clusterId, char* deviceIdBuffer);
         bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer);
         TrustDeviceChannel getPreferredChannel (const char* deviceId);
         TrustDeviceChannel getSecondaryChannel (const char* deviceId);

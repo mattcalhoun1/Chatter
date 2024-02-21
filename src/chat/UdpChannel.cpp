@@ -1,6 +1,6 @@
 #include "UdpChannel.h"
 
-UdpChannel::UdpChannel (uint8_t channelNum, const char* udpHostName, const char* wifiString, bool logEnabled, ChatStatusCallback* chatStatusCallback) {
+UdpChannel::UdpChannel (uint8_t channelNum, const char* udpHostName, const char* _ssid, const char* _cred, bool logEnabled, ChatStatusCallback* chatStatusCallback) {
     this->channelNum = channelNum;
     memcpy(hostName, udpHostName, strlen(udpHostName));
     hostName[strlen(udpHostName)] = '\0';
@@ -8,34 +8,10 @@ UdpChannel::UdpChannel (uint8_t channelNum, const char* udpHostName, const char*
     this->logEnabled = logEnabled;
     this->chatStatusCallback = chatStatusCallback;
 
-    bool completeSsid = false;
-    int ssidPosition = 0;
-    int pwPosition = 0;
-    for (int i = 0; i < strlen(wifiString) && wifiString[i] != '\0'; i++) {
-      if (wifiString[i] == ENCRYPTION_CRED_DELIMITER) {
-        completeSsid = true;
-      }
-      else if (completeSsid) {
-        if (pwPosition < WIFI_PASSWORD_MAX_LEN) {
-          password[pwPosition++] = wifiString[i];
-        }
-        else {
-          validWifiConfig = false;
-          logConsole("ERROR: WIFI password too long for buffer!");
-        }
-      }
-      else {
-        if (ssidPosition < WIFI_SSID_MAX_LEN) {
-          ssid[ssidPosition++] = wifiString[i];
-        }
-        else {
-          validWifiConfig = false;
-          logConsole("ERROR: WIFI ssid TOO long for buffer!");
-        }
-      }
-    }
-    ssid[ssidPosition] = '\0';
-    password[pwPosition] = '\0';
+    memset(ssid, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+    memcpy(ssid, _ssid, min(strlen(_ssid), CHATTER_WIFI_STRING_MAX_SIZE));
+    memset(password, 0, CHATTER_WIFI_STRING_MAX_SIZE);
+    memcpy(password, _cred, min(strlen(_ssid), CHATTER_WIFI_STRING_MAX_SIZE));
 }
 
 bool UdpChannel::init() {

@@ -14,7 +14,7 @@
 #define ENC_SIGNATURE_SIZE 64
 
 #define ENC_SYMMETRIC_KEY_SIZE 16
-#define ENC_SYMMETRIC_KEY_BUFFER_SIZE 65 // was 33
+#define ENC_SYMMETRIC_KEY_BUFFER_SIZE 33 // was 33
 #define ENC_VOLATILE_KEY_SIZE 32
 #define ENC_DATA_SLOT_SIZE 32 // was 32
 #define ENC_DATA_SLOT_BUFFER_SIZE 33 // was 33 // is the driver overrunnign our buffer when we load slot 10?

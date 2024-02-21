@@ -11,6 +11,7 @@
 #include "../encryption/Encryptor.h"
 //#include "../encryption/ChaChaEncryptor.h"
 #include "../encryption/Hsm.h"
+#include "../encryption/PseudoHsm.h"
 #include "ChatStatusCallback.h"
 #include "ChatterPacket.h"
 #include "../storage/PacketStore.h"
@@ -69,6 +70,7 @@ class Chatter : ChatStatusCallback {
     ChatStatus getChatStatus(int channelNum) { return status[channelNum]; }
     ChatterChannel* getChannel (int channelNum);
     const char* getDeviceId () {return deviceId; }
+    const char* getClusterId () {return clusterId; }
 
     bool hasMessage ();
     bool retrieveMessage ();
@@ -79,6 +81,8 @@ class Chatter : ChatStatusCallback {
     int getMessageSize ();
     const char* getTextMessage ();
     const uint8_t* getRawMessage ();
+
+    bool factoryReset ();
 
     void ingestPacketMetadata (const char* rawPacket, int messageSize);
 
@@ -118,6 +122,8 @@ class Chatter : ChatStatusCallback {
     RTClockBase* getRtc() {return rtc;}
     Hsm* getHsm () {return hsm;}
 
+    void logDebugInfo ();
+
   private:
     ChatterDeviceType deviceType;
     ChatterMode mode;
@@ -154,10 +160,15 @@ class Chatter : ChatStatusCallback {
     Encryptor* encryptor;
     RTClockBase* rtc;
 
+    char defaultClusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1]; 
+
     char deviceId[CHATTER_DEVICE_ID_SIZE+1];
     char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1]; 
-    char wifiSsid[WIFI_SSID_MAX_LEN + 1];
-    char wifiCred[WIFI_PASSWORD_MAX_LEN + 1];
+    char clusterAlias[CHATTER_ALIAS_NAME_SIZE + 1];
+    char wifiSsid[CHATTER_WIFI_STRING_MAX_SIZE];
+    char wifiCred[CHATTER_WIFI_STRING_MAX_SIZE];
+    ClusterChannel clusterPreferredChannel;
+    ClusterChannel clusterSecondaryChannel;
     float loraFrequency;
 
     void logConsole(String msg);
@@ -169,7 +180,7 @@ class Chatter : ChatStatusCallback {
     uint8_t footerBuffer[CHATTER_FOOTER_BUFFER_SIZE]; // shared by receive and send, for slightly differnt purposes
     uint8_t hashBuffer[CHATTER_HASH_SIZE]; // used when generating hashes for footer
     uint8_t headerBuffer[CHATTER_HEADER_BUFFER_SIZE];
-    char senderPublicKey[ENC_PUB_KEY_SIZE];
+    uint8_t senderPublicKey[ENC_PUB_KEY_SIZE];
     
     //uint8_t receiveBuffer[UDP_MAX_MESSAGE_LEN];
     //int receiveBufferSize;
@@ -183,10 +194,11 @@ class Chatter : ChatStatusCallback {
 
     FramData* fram; // only set if one of the data storage selections is fram
 
-    char uniqueDeviceId[32]; // may be up to 32 chars
+    char uniqueDeviceId[33]; // may be up to 32 chars (plus term)
     uint8_t uniqueDeviceIdSize;
     bool readHardwareDeviceId ();
     bool deviceStoreInitialized ();
+    bool loadClusterConfig(const char* clusterId);
 };
 
 #endif

@@ -1,7 +1,7 @@
 #include "PseudoHsm.h"
 
 bool PseudoHsm::init(const char* _clusterId) {
-    uECC_set_rng(&RNG);
+    uECC_set_rng(&rng);
 
     // if there is no private key yet, generate a new keypair
     bool success = false;
@@ -13,9 +13,9 @@ bool PseudoHsm::init(const char* _clusterId) {
     if (success) {
         // attempt to load cluster symmetric key
         memcpy(this->clusterId, _clusterId, STORAGE_LOCAL_NET_ID_SIZE + STORAGE_GLOBAL_NET_ID_SIZE);
-        if(deviceStore->loadSymmetricKey (clusterId, symmetricKey)) {
+        if(clusterStore->loadSymmetricKey (clusterId, symmetricKey)) {
             logConsole("Cluster key loaded");
-            if (deviceStore->loadIv(clusterId, iv)) {
+            if (clusterStore->loadIv(clusterId, iv)) {
                 logConsole("IV prepared");
             }
             else {
@@ -67,8 +67,11 @@ void PseudoHsm::decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t
     algo->decryptVolatile(encryptedBuffer, len, unencryptedBuffer, unencryptedBufferSize);
 }
 
+bool PseudoHsm::generateSymmetricKey (uint8_t* keyBuffer, uint8_t length) {
+    return algo->generateSymmetricKey(keyBuffer, length);
+}
 
-static int RNG(uint8_t *dest, unsigned size) {
+int PseudoHsm::rng(uint8_t *dest, unsigned size) {
   // Use the least-significant bits from the ADC for an unconnected pin (or connected to a source of 
   // random noise). This can take a long time to generate random data if the result of analogRead(0) 
   // doesn't change very frequently.
@@ -95,12 +98,15 @@ static int RNG(uint8_t *dest, unsigned size) {
   return 1;
 }
 
-void PseudoHsm::generateNextVolatileKey () {
+void PseudoHsm::generateRandomBytes (uint8_t* buffer, int numBytes) {
     uint8_t generatedBytes = 0;
-    while (generatedBytes < ENC_VOLATILE_KEY_SIZE) {
-        volatileEncryptionKey[generatedBytes++] = (uint8_t)getRandomLong();
+    while (generatedBytes < numBytes) {
+        buffer[generatedBytes++] = (uint8_t)getRandomLong();
     }
-    volatileEncryptionKey[generatedBytes] = 0;
+}
+
+void PseudoHsm::generateNextVolatileKey () {
+    generateRandomBytes(volatileEncryptionKey, ENC_VOLATILE_KEY_SIZE);
 }
 
 bool PseudoHsm::generateAndSaveNewKeypair() {
@@ -142,4 +148,30 @@ void PseudoHsm::logConsole(const char* msg) {
     if (ENC_LOG_ENABLED) {
         Serial.println(msg);
     }
+}
+bool PseudoHsm::factoryReset() {
+    uECC_set_rng(&rng);
+
+    // if there is no private key yet, generate a new keypair
+    bool success = generateAndSaveNewKeypair();
+    uECC_compute_public_key(signingKey, publicKey, curve);
+    
+    // set our keys to random data
+
+    // create algo with random keys. these will get overwritten later
+    generateRandomBytes(symmetricKey, ENC_SYMMETRIC_KEY_SIZE);
+    generateRandomBytes(iv, ENC_SYMMETRIC_KEY_SIZE);
+    generateNextVolatileKey();
+    
+    algo = new ChaChaAlgo(this->symmetricKey, this->volatileEncryptionKey);
+    algo->init(this->iv);
+
+    if(success) {
+        logConsole("HSM reset successful");
+    }
+    else {
+        logConsole("HSM reset failed");
+    }
+
+    return false;
 }
