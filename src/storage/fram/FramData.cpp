@@ -1,12 +1,15 @@
 #include "FramData.h"
 
-FramData::FramData (const uint8_t* _key, const uint8_t* _volatileKey) {
+FramData::FramData (const uint8_t* _key, const uint8_t* _volatileKey, FramConnectionType _connectionType) {
   chacha.setKey(_key, ENC_SYMMETRIC_KEY_SIZE);
   chachaVolatile.setKey(_volatileKey, ENC_SYMMETRIC_KEY_SIZE);
   memcpy(iv, _key+ENC_SYMMETRIC_KEY_SIZE, ENC_IV_SIZE);
+  connectionType = _connectionType;
 }
 
-FramData::FramData(const char* _passphrase, uint8_t _length) {
+FramData::FramData(const char* _passphrase, uint8_t _length, FramConnectionType _connectionType) {
+    connectionType = _connectionType;
+
     // in this case, we generate our own key using the given passphrase
     uint8_t hashOfPassphrase[32];
     memset(hashOfPassphrase, 0, 32);
@@ -36,16 +39,27 @@ FramData::FramData(const char* _passphrase, uint8_t _length) {
 
 
 bool FramData::init() {
-  running = fram.begin();//0x50);
-
-  // clear any volatile zones
-  for (uint8_t i = 0; i < FRAM_NUM_ZONES; i++) {
-    if (zoneVolatile[i]) {
-      clearZone(zoneId[i]);
+    switch (connectionType) {
+        case FramSPI:
+            fram = new FramAdafruitSPI();
+            break;
+        case FramI2C:
+            fram = new FramAdafruitI2C();
+            break;
+        default:
+            Serial.println("Error: bad fram type");
+            return false;
     }
-  }
+    running = fram->init();
 
-  return running;
+    // clear any volatile zones
+    for (uint8_t i = 0; i < FRAM_NUM_ZONES; i++) {
+    if (zoneVolatile[i]) {
+        clearZone(zoneId[i]);
+    }
+    }
+
+    return running;
 }
 
 bool FramData::recordExists (FramZone zone, uint8_t* recordKey) {
@@ -60,11 +74,11 @@ bool FramData::writeToNextSlot (FramRecord* record) {
 
     // bump the last used slot to what we just used
     uint16_t zoneLoc = zoneLocations[record->getZone()];
-    if(fram.write(zoneLoc + 1, nextSlot)) {
+    if(fram->write(zoneLoc + 1, nextSlot)) {
       uint8_t slotsUsed = FramData::getNumUsedSlots(record->getZone());
 
       if (slotsUsed < zoneSlots[record->getZone()]) {
-        return fram.write(zoneLoc, slotsUsed+1);
+        return fram->write(zoneLoc, slotsUsed+1);
       }
 
       return true;
@@ -86,7 +100,7 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
   record->serializeKey(unencryptedBuffer);
   uint16_t dataPosition = getFramKeyLocation(record->getZone(), slot);
 
-  if(!fram.write(dataPosition, unencryptedBuffer, zoneKeySizes[record->getZone()])) {
+  if(!fram->write(dataPosition, unencryptedBuffer, zoneKeySizes[record->getZone()])) {
     Serial.println("Key not written to fram");
   }
 
@@ -100,10 +114,10 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
   if (zoneEncrypted[record->getZone()]) {
     encrypt(unencryptedBuffer, actualDataSize);
     bytesToWrite = guessEncryptionBufferSize(encryptedBuffer, 0);
-    fram.write(dataPosition, encryptedBuffer, bytesToWrite);
+    fram->write(dataPosition, encryptedBuffer, bytesToWrite);
   }
   else {
-    fram.write(dataPosition, unencryptedBuffer, bytesToWrite);
+    fram->write(dataPosition, unencryptedBuffer, bytesToWrite);
   }
 
   return true;
@@ -115,7 +129,7 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
   memset(keyBuffer, 0, FRAM_MAX_KEYSIZE); // for temporarily holding keys, various purposes. choosing largest key size
 
   uint16_t dataPosition = getFramKeyLocation(record->getZone(), slot);
-  fram.read(dataPosition, keyBuffer, zoneKeySizes[record->getZone()]);
+  fram->read(dataPosition, keyBuffer, zoneKeySizes[record->getZone()]);
 
     dataPosition = getFramDataLocation(record->getZone(), slot);
     memset(unencryptedBuffer, 0, FRAM_ENC_BUFFER_SIZE);
@@ -123,12 +137,12 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
   if (zoneEncrypted[record->getZone()]) {
     // read into the encrypted buffer
     memset(encryptedBuffer, 0, zoneDataSizes[record->getZone()]);
-    fram.read(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
+    fram->read(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
     decrypt(encryptedBuffer, FRAM_ENC_BUFFER_SIZE);
   }
   else {
     // write the encrypted record to the appropriate slot
-    fram.read(dataPosition, unencryptedBuffer, zoneDataSizes[record->getZone()]);
+    fram->read(dataPosition, unencryptedBuffer, zoneDataSizes[record->getZone()]);
   }
 
   // ingest the record
@@ -156,12 +170,12 @@ uint16_t FramData::getFramKeyLocation (FramZone zone, uint8_t slot) {
 }
 
 uint8_t FramData::getNumUsedSlots (FramZone zone) {
-  uint8_t used = fram.read(zoneLocations[zone]);
+  uint8_t used = fram->read(zoneLocations[zone]);
   return used;
 }
 
 uint8_t FramData::getNextSlot (FramZone zone) {
-  uint8_t newestSlot = fram.read(zoneLocations[zone] + 1);
+  uint8_t newestSlot = fram->read(zoneLocations[zone] + 1);
   if (newestSlot >= zoneSlots[zone] - 1) {
     return 0;
   }
@@ -231,7 +245,7 @@ bool FramData::clearAllZones () {
 bool FramData::clearZone (FramZone zone) {
   // set the metadata back to zeros so the entire zone becomes unused
   uint16_t addr = zoneLocations[zone];
-  fram.write(addr, 0);
+  fram->write(addr, 0);
 
   // latest slot pointer goes to the last, so next will result in 0
   Serial.print("Clear zone: setting latest used slot for zone: ");
@@ -239,5 +253,5 @@ bool FramData::clearZone (FramZone zone) {
   Serial.print(" to ");
   Serial.println(zoneSlots[zone] - 1);
 
-  fram.write(addr+1, zoneSlots[zone] - 1);
+  fram->write(addr+1, zoneSlots[zone] - 1);
 }

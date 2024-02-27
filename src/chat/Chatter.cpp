@@ -9,7 +9,7 @@ bool Chatter::init () {
         logConsole("Creating caching fram datastore");
 
         // if this is a new device, we will need to build the fram data from scratch, so lazy load for now
-        fram = new CachingFramDatastore(uniqueDeviceId, uniqueDeviceIdSize, true);
+        fram = new CachingFramDatastore(uniqueDeviceId, uniqueDeviceIdSize, FramSPI, true);
 
         if (fram->init()) {
             logConsole("Fram initialized");

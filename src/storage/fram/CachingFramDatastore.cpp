@@ -27,7 +27,7 @@ uint8_t CachingFramDatastore::getNumUsedSlots (FramZone zone) {
 
 uint8_t CachingFramDatastore::getLatestSlot(FramZone zone) {
     if (latestSlotIdCache[zone] == FRAM_NULL) {
-        latestSlotIdCache[zone] = fram.read(zoneLocations[zone] + 1);
+        latestSlotIdCache[zone] = fram->read(zoneLocations[zone] + 1);
     }
     return latestSlotIdCache[zone];
 }

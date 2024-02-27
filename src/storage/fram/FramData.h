@@ -4,8 +4,9 @@
 #include "FramRecord.h"
 #include "ChaCha.h"
 #include <SHA256.h>
-#include "Adafruit_FRAM_I2C.h"
-#include "Adafruit_EEPROM_I2C.h"
+#include "FramHardware.h"
+#include "FramAdafruitSPI.h"
+#include "FramAdafruitI2C.h"
 
 #ifndef FRAMDATA_H
 #define FRAMDATA_H
@@ -65,10 +66,15 @@
 
 //uint32_t max_addr;
 
+enum FramConnectionType {
+    FramSPI = 0,
+    FramI2C = 1
+};
+
 class FramData {
   public:
-    FramData (const uint8_t* _key, const uint8_t* _volatileKey);
-    FramData (const char* _passphrase, uint8_t _length);
+    FramData (const uint8_t* _key, const uint8_t* _volatileKey, FramConnectionType _connectionType);
+    FramData (const char* _passphrase, uint8_t _length, FramConnectionType _connectionType);
     virtual bool init ();
 
     virtual uint8_t getNumUsedSlots (FramZone zone);
@@ -117,7 +123,8 @@ class FramData {
     uint8_t zoneVolatile[FRAM_NUM_ZONES] = { FRAM_DEVICE_VOLATILE, FRAM_CLUSTER_VOLATILE, FRAM_TRUST_VOLATILE, FRAM_PACKET_VOLATILE };
     FramZone zoneId[FRAM_NUM_ZONES] = {ZoneDevice, ZoneCluster, ZoneTrust, ZonePacket};
 
-    Adafruit_FRAM_I2C fram;
+    FramConnectionType connectionType;
+    FramHardware* fram;
     //Adafruit_EEPROM_I2C fram;
     bool running = false;
 

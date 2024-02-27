@@ -9,8 +9,8 @@
 
 class CachingFramDatastore : public FramData {
   public:
-    CachingFramDatastore (const uint8_t* _key, const uint8_t* _volatileKey, bool _lazyLoadCache = false) : FramData (_key, _volatileKey) {lazyLoadCache = _lazyLoadCache;}
-    CachingFramDatastore (const char* _passphrase, uint8_t _length, bool _lazyLoadCache = false) : FramData (_passphrase, _length) {lazyLoadCache = _lazyLoadCache;}
+    CachingFramDatastore (const uint8_t* _key, const uint8_t* _volatileKey, FramConnectionType _connectionType, bool _lazyLoadCache = false) : FramData (_key, _volatileKey, _connectionType) {lazyLoadCache = _lazyLoadCache;}
+    CachingFramDatastore (const char* _passphrase, uint8_t _length, FramConnectionType _connectionType, bool _lazyLoadCache = false) : FramData (_passphrase, _length, _connectionType) {lazyLoadCache = _lazyLoadCache;}
     bool init ();
 
     uint8_t getNumUsedSlots (FramZone zone);
