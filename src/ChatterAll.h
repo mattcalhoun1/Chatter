@@ -6,8 +6,8 @@
 
 #include "cluster/ClusterAdmin.h"
 #include "cluster/ClusterAssistant.h"
-#include "cluster/ClusterInterface.h"
-#include "cluster/BleClusterInterface.h"
+#include "cluster/ClusterAdminInterface.h"
+#include "cluster/BleClusterAdminInterface.h"
 
 #include "chat/ChatStatusCallback.h"
 #include "storage/PacketStore.h"

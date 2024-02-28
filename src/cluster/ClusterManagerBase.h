@@ -23,6 +23,9 @@
 #define CLUSTER_CFG_SECONDARY "SECONDARY"
 #define CLUSTER_CFG_AUTH "AUTH"
 
+// prefix indicating the presence of a client's public key
+#define CLUSTER_REQ_PUB_PREFIX "PUB:"
+
 class ClusterManagerBase {
     public:
         ClusterManagerBase(Chatter* _chatter) { chatter = _chatter; }
@@ -57,6 +60,7 @@ class ClusterManagerBase {
         ClusterChannel secondaryChannel;
         ClusterAuthType authType;
 
+        void logConsole(const char* msg);
 };
 
 #endif

@@ -6,9 +6,9 @@
 #include <WiFiUdp.h>
 #endif
 
-
 #ifdef WIFI_ONBOARD
 #include "WiFiS3.h"
+//#include <WiFiUdp.h>
 #endif
 #include <SPI.h>
 #include "ChatStatusCallback.h"

@@ -120,3 +120,7 @@ bool ClusterManagerBase::getUserInput (const char* prompt, char* inputBuffer, in
     }
     return goodCount >= minLength;
 }
+
+void ClusterManagerBase::logConsole(const char* msg) {
+    Serial.println(msg);
+}
