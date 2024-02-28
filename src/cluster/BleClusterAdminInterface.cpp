@@ -3,9 +3,9 @@
 //#if defined (ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_UNOR4_WIFI)
 bool BleClusterAdminInterface::init () {
     service = new BLEService(BLE_CLUSTER_INTERFACE_UUID);
-    tx = new BLEStringCharacteristic(BLE_CLUSTER_TX_UUID, BLERead | BLENotify, BLE_MAX_BUFFER_SIZE);
-    rx = new BLEStringCharacteristic(BLE_CLUSTER_RX_UUID, BLERead | BLEWrite | BLENotify, BLE_MAX_BUFFER_SIZE);
-    status = new BLEStringCharacteristic(BLE_CLUSTER_STATUS_UUID, BLERead, BLE_SMALL_BUFFER_SIZE);
+    tx = new BLECharacteristic(BLE_CLUSTER_TX_UUID, BLERead | BLENotify, BLE_MAX_BUFFER_SIZE, BLE_MAX_BUFFER_SIZE);
+    rx = new BLECharacteristic(BLE_CLUSTER_RX_UUID, BLERead | BLEWrite | BLENotify, BLE_MAX_BUFFER_SIZE, BLE_MAX_BUFFER_SIZE);
+    status = new BLECharacteristic(BLE_CLUSTER_STATUS_UUID, BLERead, BLE_SMALL_BUFFER_SIZE, BLE_MAX_BUFFER_SIZE);
 
     service->addCharacteristic(*tx);
     service->addCharacteristic(*rx);
@@ -84,19 +84,23 @@ bool BleClusterAdminInterface::handleClientInput (const char* input, int inputLe
 bool BleClusterAdminInterface::sendTxBufferToClient (const char* expectedConfirmation) {
     bool confirmationReceived = false;
     // publish to the tx characteristic,
-    tx->writeValue((const char*)txBuffer);
+    tx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
 
     // wait for the confirmation to appear in the rx characteristic
     unsigned long startTime = millis();
     while (millis() - startTime < maxSessionStepWait && confirmationReceived == false) {
         BLE.poll();
+        if (rx->written()) {
+            int bytesRead = rx->readValue(rxBuffer, BLE_MAX_BUFFER_SIZE);
+            if (bytesRead >= strlen(expectedConfirmation) && memcmp(rxBuffer, expectedConfirmation, strlen(expectedConfirmation)) == 0) {
+                confirmationReceived = true;
 
-        if (rx->valueLength() >= strlen(expectedConfirmation) && memcmp(rx->value(), expectedConfirmation, strlen(expectedConfirmation)) == 0) {
-            confirmationReceived = true;
-
-            // reset the tx buffer for next send
-            rx->writeValue("ready");
-            status->writeValue("ready");
+                // reset the tx buffer for next send
+                memset(rxBuffer, 0, BLE_MAX_BUFFER_SIZE);
+                sprintf((char*)rxBuffer, "%s", "ready");
+                rx->writeValue(rxBuffer, BLE_MAX_BUFFER_SIZE);
+                status->writeValue(rxBuffer, BLE_MAX_BUFFER_SIZE);
+            }
         }
     }
 
@@ -110,38 +114,41 @@ bool BleClusterAdminInterface::isConnected () {
         Serial.print("Connected to central: ");
         // print the central's MAC address:
         Serial.println(bleDevice.address());    
+        String devAddr = bleDevice.address();
         connected = true;
 
+        memset (txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+        memcpy(txBuffer, devAddr.c_str(), devAddr.length());
+
         // set the status to that devices mac
-        status->writeValue(bleDevice.address().c_str());
-        tx->writeValue(bleDevice.address().c_str());
+        status->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
+        tx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
 
         // this takes over all processing until the connection ends
         while (bleDevice.connected()) {
-            if (rx->written()) {
+            BLE.poll(20);
+            if (rx->written() || rx->valueUpdated()) {
                 memset(rxBuffer, 0, BLE_MAX_BUFFER_SIZE+1);
-                rxBufferLength = rx->valueLength();
-                for (int i = 0; i < rxBufferLength; i++) {
-                    rxBuffer[i] = rx->value()[i];
-                }
+                rxBufferLength = rx->readValue(rxBuffer, BLE_MAX_BUFFER_SIZE);
 
+                memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE+1);
                 if (handleClientInput((const char*)rxBuffer, rxBufferLength)) {
-                    memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE+1);
-                    txBuffer[0] = 'O';
-                    txBuffer[1] = 'K';
-                    txBuffer[2] = ':';
-                    sprintf(((char*)txBuffer+3), "%d.",millis());
-                    tx->writeValue((const char*)txBuffer);
+                    sprintf((char*)txBuffer, "%s", "OK");
                 }
                 else {
-                    tx->writeValue("ERROR");
+                    sprintf((char*)txBuffer, "%s", "ERROR");
                 }
+                tx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
             }
             delay(100);
         }
 
+        logConsole("BLE device no longer connected");
+
         // ready for new connections
-        status->writeValue("ready");
+        memset (txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+        memcpy(txBuffer, "ready",5);
+        status->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
     }
     return connected;
 }
@@ -152,17 +159,21 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer) {
     unsigned long startTime = millis();
 
     // let central device know to produce the pub key
-    rx->writeValue("ready");
+    memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+    memcpy(txBuffer, "ready", 5);
+    rx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
 
-    tx->writeValue("PUB");
-    status->writeValue("PUB");
+    memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+    memcpy(txBuffer, "PUB", 3);
+    tx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
+    status->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
 
     // pub key can only be hex with no spaces
     memset(hexEncodedPubKey, 0, ENC_PUB_KEY_SIZE * 2 + 1);
     int keyBytesRead = 0;
     while ((millis() - startTime < maxSessionStepWait) && keyBytesRead < ENC_PUB_KEY_SIZE * 2 && validKey) {
         BLE.poll();
-        if (rx->written()) {
+        if (rx->written() || true) {
             memset(rxBuffer, 0, BLE_MAX_BUFFER_SIZE+1);
             bytesRead = rx->readValue(rxBuffer, BLE_MAX_BUFFER_SIZE);
 
@@ -189,7 +200,9 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer) {
             }
 
             // notify client to write more
-            tx->writeValue(String(bytesRead).c_str());
+            memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+            sprintf((char*)txBuffer, "%d", bytesRead);
+            tx->writeValue(txBuffer, BLE_MAX_BUFFER_SIZE);
         }
         delay(100);
     }
