@@ -22,6 +22,7 @@
 #define CLUSTER_CFG_PRIMARY "PRIMARY"
 #define CLUSTER_CFG_SECONDARY "SECONDARY"
 #define CLUSTER_CFG_AUTH "AUTH"
+#define CLUSTER_CFG_LICENSE "LIC"
 
 // prefix indicating the presence of a client's public key
 #define CLUSTER_REQ_PUB_PREFIX "PUB:"
@@ -43,6 +44,8 @@ class ClusterManagerBase {
         char alias[CHATTER_ALIAS_NAME_SIZE + 1];
         char hexEncodedPubKey[ENC_PUB_KEY_SIZE * 2 + 1];
         uint8_t pubKey[ENC_PUB_KEY_SIZE];
+        uint8_t hashBuffer[ENC_HASH_SIZE];
+        char hexEncodedLicense[ENC_SIGNATURE_SIZE * 2 + 1];
 
         char hexEncodedSymmetricKey[ENC_SYMMETRIC_KEY_SIZE * 2 + 1];
         uint8_t symmetricKey[ENC_SYMMETRIC_KEY_SIZE];

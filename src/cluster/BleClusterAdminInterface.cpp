@@ -123,15 +123,12 @@ bool BleClusterAdminInterface::writeBleBufferWait (BLECharacteristic* bleChar, B
 bool BleClusterAdminInterface::sendBufferToClient (BLECharacteristic* bleChar, BLECharacteristic* bleFlagChar, uint8_t* buff, uint8_t len) {
     uint8_t bytesSent = 0;
     unsigned long startTime = millis();
-
     memset(bleBuffer, BLE_HEADER_CHAR, BLE_SMALL_BUFFER_SIZE);
     bleBufferLength = BLE_SMALL_BUFFER_SIZE;
-    logConsole("sending header");
     if (!writeBleBufferWait(bleChar, bleFlagChar, bleBuffer, bleBufferLength)) {
         logConsole("Failed to transmit header");
         return false;
     }
-    logConsole("sending content");
     while (bytesSent < len && millis() - startTime < maxSessionStepWait) {
         // copy next portion of txbuffer into blebuffer
         memset(bleBuffer, 0, BLE_SMALL_BUFFER_SIZE);
@@ -151,7 +148,6 @@ bool BleClusterAdminInterface::sendBufferToClient (BLECharacteristic* bleChar, B
         }
     }
 
-    logConsole("sending footer");
     memset(bleBuffer, BLE_FOOTER_CHAR, BLE_SMALL_BUFFER_SIZE);
     bleBufferLength = BLE_SMALL_BUFFER_SIZE;
     if (!writeBleBufferWait(bleChar, bleFlagChar, bleBuffer, bleBufferLength)) {
@@ -196,27 +192,18 @@ uint8_t BleClusterAdminInterface::receiveBufferFromClient (BLECharacteristic* bl
     char flag[1];
 
     while ((!receivedHeader || !receivedFooter) && (millis() - startTime < maxSessionStepWait) && (bytesRead <= maxLength)) {
-        //logConsole("check connecrted");
         if(device) {
-            //logConsole("is connected");
             BLE.poll();
-            //device->poll();
-            //logConsole("polled");
-            // check if flag  indicates an unread message
             bleFlagChar->readValue(flag, 1);
 
             if (flag[0] == '0') {
-                logConsole("Receiving unread buffer...");
                 memset(bleBuffer, 0, BLE_SMALL_BUFFER_SIZE);
                 bleChar->readValue(bleBuffer, BLE_SMALL_BUFFER_SIZE);
-                logConsole("buffer has been read...");
 
                 if (!receivedHeader && bleBufferContainsHeader()) {
-                    logConsole(" it was header");
                     receivedHeader = true;
                 }
                 else if (!receivedFooter && bleBufferContainsFooter()) {
-                    logConsole(" it was footer");
                     receivedFooter = true;
                 }
                 else {
@@ -239,14 +226,8 @@ uint8_t BleClusterAdminInterface::receiveBufferFromClient (BLECharacteristic* bl
 
                 // acknowledge receipt to the device
                 bleFlagChar->writeValue("1");
-                logConsole("wrote ack");
                 BLE.poll();
-                logConsole("polled");
             }
-            //else {
-            //    Serial.print("Flag was char: "); Serial.println((uint8_t)flag[0]);
-            //    delay(500);
-            //}
 
         }
         else {
@@ -275,28 +256,16 @@ bool BleClusterAdminInterface::isConnected () {
         String devAddr = bleDevice.address();
         connected = true;
 
-        //memset (bleBuffer, 0, BLE_SMALL_BUFFER_SIZE);
-        //memcpy(bleBuffer, devAddr.c_str(), devAddr.length());
-
-        // set the status to that devices mac
-        //status->writeValue(bleBuffer, BLE_SMALL_BUFFER_SIZE);
-        //tx->writeValue(bleBuffer, BLE_SMALL_BUFFER_SIZE);
-
-        // wait a few seconds
-
-
         // this takes over all processing until the connection ends
         bool success = true;
         unsigned long connStartTime = millis();
 
         // wait for client to finish
-        logConsole("giving client time...");
         unsigned long startTime = millis();
-        while (millis() - startTime < 10000) {
+        while (millis() - startTime < BLE_CONNECT_TIME) {
             delay(500);
             bleDevice.poll();
         }
-        logConsole("checking for rx input...");
 
         while (bleDevice.connected() && success) {
             if (receiveRxBufferFromClient(&bleDevice)) {
@@ -361,7 +330,6 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevi
         // receive key bytes from  client
         if(receiveRxBufferFromClient(bleDevice)) {
             if (memcmp(rxBuffer, "PUB:", 4) == 0) {
-                Serial.println("part of pub key receive");
                 memcpy(hexEncodedPubKey, rxBuffer + 4, rxBufferLength - 4);
 
                 for (uint8_t i = 4; i < rxBufferLength; i++) {
@@ -388,7 +356,7 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevi
         logConsole("pub key request not acknowledged");
     }
 
-    Serial.print("FULL KEy: ");
+    Serial.print("Device Public Key: ");
     for (int i = 0; i < ENC_PUB_KEY_SIZE * 2; i++) {
         Serial.print(hexEncodedPubKey[i]);
     }
@@ -605,6 +573,27 @@ bool BleClusterAdminInterface::dumpDevice (const char* deviceId, const char* ali
 
     return true;
 }
+
+bool BleClusterAdminInterface::dumpLicense (const char* deviceId) {
+    if (generateEncodedLicense(deviceId)) {
+        memset(txBuffer, 0, BLE_MAX_BUFFER_SIZE);
+        sprintf((char*)txBuffer, "%s%c%s%s", CLUSTER_CFG_LICENSE, CLUSTER_CFG_DELIMITER, chatter->getDeviceId(), hexEncodedLicense);
+        txBufferLength = strlen(CLUSTER_CFG_LICENSE) + 1 + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE * 2);
+
+        if (sendTxBufferToClient()) {
+            logConsole("License sent");
+            return true;
+        }
+        else {
+            logConsole("License not sent, ble send failed");
+        }
+
+    }
+
+    logConsole("license not sent, failed to generate");
+    return false;
+}
+
 
 uint8_t BleClusterAdminInterface::findChar (char toFind, const  uint8_t* buffer, uint8_t bufferLen) {
     for (uint8_t i = 0; i < bufferLen; i++) {

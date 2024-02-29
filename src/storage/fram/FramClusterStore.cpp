@@ -103,6 +103,14 @@ ClusterChannel FramClusterStore::getSecondaryChannel (const char* clusterId) {
     return ClusterChannelNone;
 }
 
+ClusterLicenseType FramClusterStore::getLicenseType (const char* clusterId) {
+    if (loadClusterBuffer(clusterId)) {
+        return clusterBuffer.getLicenseType();
+    }
+    return ClusterLicenseRoot; // default to most secure
+}
+
+
 ClusterAuthType FramClusterStore::getAuthType (const char* clusterId) {
     if (loadClusterBuffer(clusterId)) {
         return clusterBuffer.getAuthType();
@@ -132,7 +140,7 @@ bool FramClusterStore::deleteCluster (const char* clusterId) {
 
         populateKeyBuffer(clusterId);
 
-        uint8_t slotNum = datastore->getRecordNum(ZoneCluster, (uint8_t*)clusterId);
+        uint8_t slotNum = datastore->getRecordNum(ZoneCluster, (uint8_t*)keyBuffer);
         if (slotNum != FRAM_NULL) {
             bool result = datastore->writeRecord(&clusterBuffer, slotNum);
             if (result) {
@@ -148,7 +156,7 @@ bool FramClusterStore::deleteCluster (const char* clusterId) {
     return true; // if not found, its already deleted
 }
 
-bool FramClusterStore::addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) {
+bool FramClusterStore::addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType, ClusterLicenseType licenseType) {
     // make sure cluster doesnt already exist
     populateKeyBuffer(clusterId);
 
@@ -171,6 +179,7 @@ bool FramClusterStore::addCluster (const char* clusterId, const char* alias, con
     clusterBuffer.setPreferredChannel(preferredChannel);
     clusterBuffer.setSecondaryChannel(secondaryChannel);
     clusterBuffer.setAuthType(authType);
+    clusterBuffer.setLicenseType(licenseType);
     clusterBuffer.setStatus(ClusterActive);
     clusterBuffer.setDeviceId(deviceId);
 

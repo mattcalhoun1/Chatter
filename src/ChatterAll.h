@@ -12,6 +12,8 @@
 #include "chat/ChatStatusCallback.h"
 #include "storage/PacketStore.h"
 #include "storage/TrustStore.h"
+#include "storage/DeviceStore.h"
+#include "storage/LicenseStore.h"
 
 #include "rtc/R4RtClock.h"
 #include "rtc/RTClockBase.h"

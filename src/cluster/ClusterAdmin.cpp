@@ -160,7 +160,7 @@ bool ClusterAdmin::genesis () {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull);
+    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull, ClusterLicenseRoot);
 
     Serial.println("Making default cluster");
     chatter->getDeviceStore()->setDefaultClusterId(clusterId);
@@ -235,7 +235,7 @@ bool ClusterAdmin::genesisRandom () {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull);
+    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull, ClusterLicenseRoot);
 
     Serial.println("Making default cluster");
     chatter->getDeviceStore()->setDeviceName(newDeviceId);
@@ -255,6 +255,7 @@ bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, 
     dumpFrequency(hostClusterId);
     dumpChannels(hostClusterId);
     dumpAuthType(hostClusterId);
+    dumpLicense(deviceId);
 }
 
 bool ClusterAdmin::dumpTruststore (const char* hostClusterId) {
@@ -364,6 +365,39 @@ bool ClusterAdmin::dumpDevice (const char* deviceId, const char* alias) {
     Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(deviceId);
     Serial.println(alias);
+}
+
+bool ClusterAdmin::generateEncodedLicense (const char* deviceId) {
+    // get the pub key
+    if(chatter->getTrustStore()->loadPublicKey(deviceId, pubKey)) {
+        // sha256 the pub key
+        int hashLength = chatter->getEncryptor()->generateHash((const char*)pubKey, ENC_PUB_KEY_SIZE, hashBuffer);
+        
+        // sign it
+        chatter->getEncryptor()->setMessageBuffer(hashBuffer);
+        chatter->getEncryptor()->signMessage();
+        chatter->getEncryptor()->hexify(chatter->getEncryptor()->getSignatureBuffer(), ENC_SIGNATURE_SIZE);
+        memcpy(hexEncodedLicense, chatter->getEncryptor()->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
+        hexEncodedLicense[ENC_SIGNATURE_SIZE*2 - 1] = 0;
+        return true;
+    }
+
+    logConsole("failed to generate license");
+    return false;
+}
+
+bool ClusterAdmin::dumpLicense (const char* deviceId) {
+
+    if (generateEncodedLicense(deviceId)) {
+        Serial.print(CLUSTER_CFG_LICENSE);
+        Serial.print(CLUSTER_CFG_DELIMITER);
+        Serial.print(chatter->getDeviceId()); // we are the signer
+        Serial.println(hexEncodedLicense);
+        return true;
+    }
+
+    logConsole("license not sent");
+    return false;
 }
 
 

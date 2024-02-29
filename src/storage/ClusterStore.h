@@ -22,6 +22,11 @@ enum ClusterAuthType {
     ClusterAuthNoExpiry = (uint8_t)'X' // everything except expiry checked (if realtime clocks not in use)
 };
 
+enum ClusterLicenseType {
+    ClusterLicenseRoot = (uint8_t)'R', // only root can onboard devices
+    ClusterLicenseOpen = (uint8_t)'O' // trusted devices can also onboard
+};
+
 class ClusterStore : public StorageBase {
     public:
         virtual bool init () = 0;
@@ -35,12 +40,13 @@ class ClusterStore : public StorageBase {
         virtual ClusterChannel getPreferredChannel (const char* clusterId) = 0;
         virtual ClusterChannel getSecondaryChannel (const char* clusterId) = 0;
         virtual ClusterAuthType getAuthType (const char* clusterId) = 0;
+        virtual ClusterLicenseType getLicenseType (const char* clusterId) = 0;
 
         virtual bool loadSymmetricKey (const char* clusterId, uint8_t* buffer) = 0;
         virtual bool loadIv (const char* clusterId, uint8_t* buffer) = 0;
 
         virtual bool deleteCluster (const char* clusterId) = 0;
-        virtual bool addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType) = 0;
+        virtual bool addCluster (const char* clusterId, const char* alias, const char* deviceId, uint8_t* symmetricKey, uint8_t* iv, float frequency, const char* wifiSsid, const char* wifiCred, ClusterChannel preferredChannel, ClusterChannel secondaryChannel, ClusterAuthType authType, ClusterLicenseType licenseType) = 0;
 
 };
 

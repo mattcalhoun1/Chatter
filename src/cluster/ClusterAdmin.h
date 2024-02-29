@@ -35,8 +35,11 @@ class ClusterAdmin : public ClusterManagerBase {
         virtual bool dumpChannels (const char* hostClusterId);
         virtual bool dumpAuthType (const char* hostClusterId);
         virtual bool dumpDevice (const char* deviceId, const char* alias);
+        virtual bool dumpLicense (const char* deviceId);
         AdminRequestType extractRequestType (const char* request);
         ChatterDeviceType extractDeviceType (const char* request);
+
+        virtual bool generateEncodedLicense (const char* deviceId);
 };
 
 #endif

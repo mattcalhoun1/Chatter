@@ -10,6 +10,7 @@
 
 #define BLE_MAX_BUFFER_SIZE 150
 #define BLE_SMALL_BUFFER_SIZE 14
+#define BLE_CONNECT_TIME 10000
 
 class BleClusterAdminInterface : public ClusterAdminInterface {
     public:
@@ -64,6 +65,7 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool dumpChannels (const char* hostClusterId);
         bool dumpAuthType (const char* hostClusterId);
         bool dumpDevice (const char* deviceId, const char* alias);
+        bool dumpLicense (const char* deviceId);
 
         uint8_t findChar (char toFind, const uint8_t* buffer, uint8_t bufferLen);
 };

@@ -23,6 +23,8 @@ enum PacketStatus {
   PacketBridgeOut = (uint8_t)'B',
   PacketAirOut = (uint8_t)'A',
   PacketDeleted = (uint8_t)'D',
+  PacketQuarantined = (uint8_t)'Q', // intended for packets whose sig hasn't been checked or whose pub key isn't yet trusted
+  PacketTrusted = (uint8_t)'T' // packet that has been verified, including sig
 };
 
 class PacketData : public FramRecord {
