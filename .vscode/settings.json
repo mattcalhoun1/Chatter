@@ -11,7 +11,8 @@
         "ios": "cpp",
         "random": "cpp",
         "istream": "cpp",
-        "cstdint": "cpp"
+        "cstdint": "cpp",
+        "memory": "cpp"
     },
     "editor.detectIndentation": false
 }

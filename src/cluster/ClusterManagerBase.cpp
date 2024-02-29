@@ -124,3 +124,7 @@ bool ClusterManagerBase::getUserInput (const char* prompt, char* inputBuffer, in
 void ClusterManagerBase::logConsole(const char* msg) {
     Serial.println(msg);
 }
+
+void ClusterManagerBase::logConsole(String msg) {
+    Serial.println(msg);
+}

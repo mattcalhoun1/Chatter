@@ -61,6 +61,7 @@ class ClusterManagerBase {
         ClusterAuthType authType;
 
         void logConsole(const char* msg);
+        void logConsole(String msg);
 };
 
 #endif
