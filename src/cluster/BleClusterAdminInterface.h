@@ -4,13 +4,10 @@
 #include "ClusterAdminInterface.h"
 #include "ClusterGlobals.h"
 #include "../chat/Chatter.h"
+#include "BleBuffer.h"
 
 #ifndef BLECLUSTERINTERFACE_H
 #define BLECLUSTERINTERFACE_H
-
-#define BLE_MAX_BUFFER_SIZE 150
-#define BLE_SMALL_BUFFER_SIZE 14
-#define BLE_CONNECT_TIME 10000
 
 class BleClusterAdminInterface : public ClusterAdminInterface {
     public:
@@ -19,16 +16,8 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool handleClientInput (const char* input, int inputLength, BLEDevice* device);
         bool isConnected ();
     protected:
-        bool sendBufferToClient (BLECharacteristic* bleChar, BLECharacteristic* bleFlagChar, uint8_t* buff, uint8_t len);
-        uint8_t receiveBufferFromClient (BLECharacteristic* bleChar, BLECharacteristic* bleFlagChar, uint8_t* buff, uint8_t maxLength, BLEDevice* device);
-        bool sendTxBufferToClient ();
-        bool receiveRxBufferFromClient (BLEDevice* device);
-
-        bool writeBleBufferWait (BLECharacteristic* bleChar, BLECharacteristic* bleFlagChar, uint8_t* buff, int len);
-        bool bleBufferContainsHeader ();
-        bool bleBufferContainsFooter ();
-
         bool ingestPublicKey (byte* buffer, BLEDevice* device);
+        BleBuffer* bleBuffer;
 
         bool running = false;    
         bool connected = false;
@@ -40,15 +29,8 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         BLECharacteristic* status;
         BLEDevice bleDevice;
 
-        uint8_t rxBuffer[BLE_MAX_BUFFER_SIZE+1];
-        uint8_t rxBufferLength = 0;
-        uint8_t txBuffer[BLE_MAX_BUFFER_SIZE+1];
-        uint8_t txBufferLength = 0;
         uint8_t statusBuffer[BLE_SMALL_BUFFER_SIZE+1];
         uint8_t statusBufferLength = 0;
-
-        uint8_t bleBuffer[BLE_SMALL_BUFFER_SIZE]; // holds pieces of transmissions
-        uint8_t bleBufferLength = 0;
 
         // lower this
         int maxSessionStepWait = 60000;// dont wait more than this number of millis on any step
@@ -66,8 +48,6 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool dumpAuthType (const char* hostClusterId);
         bool dumpDevice (const char* deviceId, const char* alias);
         bool dumpLicense (const char* deviceId);
-
-        uint8_t findChar (char toFind, const uint8_t* buffer, uint8_t bufferLen);
 };
 
 //#endif

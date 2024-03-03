@@ -22,18 +22,19 @@ enum ClusterConfigType {
     ClusterPrimaryChannel = 8,
     ClusterSecondaryChannel = 9,
     ClusterAuth = 10,
-    ClusterNone = 11
+    ClusterLicense = 11,    
+    ClusterNone = 12
 };
 
 class ClusterAssistant : public ClusterManagerBase {
     public:
         ClusterAssistant(Chatter* _chatter) : ClusterManagerBase(_chatter) {}
-        bool attemptOnboard ();
+        virtual bool attemptOnboard ();
 
     protected:
-        void sendOnboardRequest();
-        void sendPublicKey(Hsm* hsm, Encryptor* encryptor);
-        ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor);
+        virtual void sendOnboardRequest();
+        virtual void sendPublicKey(Hsm* hsm, Encryptor* encryptor);
+        virtual ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor);
 };
 
 #endif
