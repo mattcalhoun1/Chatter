@@ -425,7 +425,8 @@ bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceTyp
             break;
         case ChatterDeviceCommunicator:
             // find the next available communicator address
-            if (chatter->getTrustStore()->findNextAvailableDeviceId (newAddress, STARTING_DEVICE_ADDRESS, newAddress+(CHATTER_DEVICE_ID_SIZE - 3))) {
+            //if (chatter->getTrustStore()->findNextAvailableDeviceId (newAddress, STARTING_DEVICE_ADDRESS, newAddress+(CHATTER_DEVICE_ID_SIZE - 3))) {
+            if (chatter->getTrustStore()->findNextAvailableDeviceId (hostClusterId, STARTING_DEVICE_ADDRESS, newAddress)) {
                 memcpy(alias, "Com_", 4);
                 memcpy(alias+4, newAddress+(CHATTER_DEVICE_ID_SIZE - 3), 3);
             }

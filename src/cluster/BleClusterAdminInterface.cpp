@@ -72,10 +72,10 @@ bool BleClusterAdminInterface::handleClientInput (const char* input, int inputLe
             bool trustedKey = chatter->getTrustStore()->findDeviceId ((const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer(), chatter->getClusterId(), knownDeviceId);
             if(trustedKey) {
                 chatter->getTrustStore()->loadAlias(knownDeviceId, knownAlias);
-                /*Serial.print("We Know: ");
+                Serial.print("We Know: ");
                 Serial.print(knownDeviceId);
                 Serial.print("/");
-                Serial.println(knownAlias);*/
+                Serial.println(knownAlias);
 
                 // if it's onboard, it should not yet exist in our truststore. if that's the case, do a sync instead
                 // if it's sync, we are good to proceed
@@ -84,6 +84,7 @@ bool BleClusterAdminInterface::handleClientInput (const char* input, int inputLe
             else {
                 // we don't know this key, which is to be expected if it's on onboard
                 if (requestType == AdminRequestOnboard) {
+                    logConsole("this is a new device, onboarding");
                     return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer());
                 }
             }
@@ -187,6 +188,10 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevi
 
                 if (rxBufferLength == (ENC_PUB_KEY_SIZE * 2) + 4 && validKey) {
                     logConsole("Public key appears valid");
+
+                    // decode the pub key into the provided buffer
+                    //memcpy(chatter->getEncryptor()->getHexBuffer(), rxBuffer + 4, ENC_PUB_KEY_SIZE * 2);
+                    chatter->getEncryptor()->hexCharacterStringToBytesMax(buffer, (const char*)rxBuffer + 4, ENC_PUB_KEY_SIZE * 2, ENC_PUB_KEY_SIZE);
                     return true;
                 }
                 else {
