@@ -1,15 +1,26 @@
 #include "Chatter.h"
 #include <List.hpp>
 
-bool Chatter::init () {
-    readHardwareDeviceId();
-    
+bool Chatter::init (const char* devicePassword) {
+    setupFramEncryptionKey(devicePassword);
+
     running = false;
     if (mode == BridgeMode || mode == BasicMode) {
         logConsole("Creating caching fram datastore");
 
+        // choose storage type.
         // if this is a new device, we will need to build the fram data from scratch, so lazy load for now
-        fram = new CachingFramDatastore(uniqueDeviceId, uniqueDeviceIdSize, FramSPI, true);
+        switch (packetStorageType) {
+            case StorageFramSPI:
+                fram = new CachingFramDatastore(framEncryptionKey, framEncryptionKeySize, FramSPI, true);
+                break;
+            case StorageFramI2C:
+                fram = new CachingFramDatastore(framEncryptionKey, framEncryptionKeySize, FramI2C, true);
+                break;
+            default:
+                logConsole("Unsupported storage type");
+                return false;
+        }
 
         if (fram->init()) {
             logConsole("Fram initialized");
@@ -841,27 +852,39 @@ void Chatter::logConsole(String msg) {
   }
 }
 
-bool Chatter::readHardwareDeviceId () {
-    memset(uniqueDeviceId, 0, 32);
+void Chatter::clearEncryptionKeyBuffer() {
+    memset(framEncryptionKey, 0, 33);
+    framEncryptionKeySize = 0;
+}
+
+bool Chatter::setupFramEncryptionKey (const char* devicePassword) {
+    clearEncryptionKeyBuffer();
+
+    // setup encryption key, default to unique device id if no password is set
+    if (devicePassword != nullptr && strlen(devicePassword) > 0) {
+        framEncryptionKeySize = strlen(devicePassword);
+        memcpy(framEncryptionKey, devicePassword, framEncryptionKeySize);
+        return true;
+    }
+
+    // no encryption key provided, default to device id until user hopefully sets a password later
     uint8_t rawId[16];
 
 #if defined(ARDUINO_UNOR4_WIFI)
     memcpy(rawId, "replacewithrfid0", 16);
 #elif !defined(ARDUINO_UNOR4_WIFI)
-    uniqueDeviceIdSize = min(16, UniqueIDsize);
-    memcpy(rawId, UniqueID, uniqueDeviceIdSize);
+    framEncryptionKeySize = min(16, UniqueIDsize);
+    memcpy(rawId, UniqueID, framEncryptionKeySize);
 #endif
     // hexify the unique id
     uint8_t appended = 0;
-    while (uniqueDeviceIdSize < 16) {
+    while (framEncryptionKeySize < 16) {
         // copy earlier part of device id into raw
-        rawId[uniqueDeviceIdSize++] = uniqueDeviceId[uniqueDeviceId[appended++]];
+        rawId[framEncryptionKeySize++] = rawId[appended++];
     }
-    Encryptor::hexify(uniqueDeviceId, rawId, 16);
-    uniqueDeviceIdSize = 32;
+    Encryptor::hexify(framEncryptionKey, rawId, 16);
+    framEncryptionKeySize = 32;
 
-    logConsole("Device ID Read: ");
-    logConsole(uniqueDeviceId);
     return true;
 }
 

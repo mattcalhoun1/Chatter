@@ -40,7 +40,8 @@ enum ChatterMode {
 
 enum StorageType {
     StorageSD = 0,
-    StorageFram = 1
+    StorageFramSPI = 1,
+    StorageFramI2C = 2
 };
 
 enum ChatterDeviceType {
@@ -55,7 +56,7 @@ enum ChatterDeviceType {
 class Chatter : ChatStatusCallback {
   public:
     Chatter(ChatterDeviceType _deviceType, ChatterMode _mode, RTClockBase* _rtc, StorageType _packetStorageType, ChatStatusCallback* _statusCallback) {deviceType = _deviceType, mode = _mode, rtc = _rtc, packetStorageType = _packetStorageType, statusCallback = _statusCallback; }
-    bool init ();
+    bool init (const char* devicePassword = nullptr);
     ChatterDeviceType getDeviceType() { return deviceType; }
 
     void addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled);
@@ -197,9 +198,10 @@ class Chatter : ChatStatusCallback {
 
     FramData* fram; // only set if one of the data storage selections is fram
 
-    char uniqueDeviceId[33]; // may be up to 32 chars (plus term)
-    uint8_t uniqueDeviceIdSize;
-    bool readHardwareDeviceId ();
+    char framEncryptionKey[33]; // may be up to 32 chars (plus term)
+    uint8_t framEncryptionKeySize;
+    bool setupFramEncryptionKey (const char* devicePassword);
+    void clearEncryptionKeyBuffer ();
     bool deviceStoreInitialized ();
     bool loadClusterConfig(const char* clusterId);
 };
