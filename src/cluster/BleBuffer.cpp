@@ -4,6 +4,7 @@
 bool BleBuffer::writeBleBufferWait (BLECharacteristic* bleChar, BLECharacteristic* bleFlagChar, uint8_t* buff, int len) {
     // clear the tx read flag
     bleChar->writeValue(buff, BLE_SMALL_BUFFER_SIZE);
+    BLE.poll();
     bleFlagChar->writeValue("0");
     unsigned long startTime = millis();
     bool ack = false;

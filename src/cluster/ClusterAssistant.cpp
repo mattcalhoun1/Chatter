@@ -169,7 +169,7 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             memcpy(hexEncodedPubKey, clusterData + CHATTER_DEVICE_ID_SIZE, ENC_PUB_KEY_SIZE * 2);
             Serial.print("Encoded Pub Key: ");
             for (int i = 0; i < ENC_PUB_KEY_SIZE * 2; i++) {
-                Serial.print(hexEncodedPubKey[i]); Serial.print(" ");
+                Serial.print(hexEncodedPubKey[i]);
             }
             Serial.println("");
 
@@ -267,13 +267,50 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
 
             return ClusterAuth;
         }
+        else if (memcmp(dataLine, CLUSTER_CFG_LICENSE, strlen(CLUSTER_CFG_LICENSE)) == 0) {
+            // first 8 digits are the signer
+            memcpy(signerId, clusterData, CHATTER_DEVICE_ID_SIZE);
+            signerId[CHATTER_DEVICE_ID_SIZE] = '\0';
+
+            //!!! hex encoded license is normal sig * 2
+            memcpy(hexEncodedLicense, clusterData + CHATTER_DEVICE_ID_SIZE, ENC_SIGNATURE_SIZE * 2);
+            hexEncodedLicense[ENC_SIGNATURE_SIZE * 2] = '\0';
+
+            Serial.print("Encoded license: ");
+            for (int i = 0; i < ENC_PUB_KEY_SIZE * 2; i++) {
+                Serial.print(hexEncodedLicense[i]);;
+            }
+            Serial.println("");
+
+            // if we set the public key buffer of encryptor using this encoded key,
+            // we can get the non-encoded key back
+            memset(license, 0, ENC_SIGNATURE_SIZE);
+            encryptor->hexCharacterStringToBytesMax(license, hexEncodedLicense, ENC_SIGNATURE_SIZE*2, ENC_SIGNATURE_SIZE);
+            
+            Serial.print("Raw license: ");
+            for (int i = 0; i < ENC_SIGNATURE_SIZE; i++) {
+                Serial.print(license[i]); Serial.print(" ");
+            }
+            Serial.println("");
+
+            // store the license
+            if(chatter->getLicenseStore()->addLicense(clusterId, signerId, license)) {
+                logConsole("License saved to license store.");
+                return ClusterLicense;
+            }
+            else {
+                logConsole("License failed to save");
+                return ClusterNone;
+            }
+
+        }
     }
 
     // this was not a config
     return ClusterNone;
 }
 
-void ClusterAssistant::sendOnboardRequest () {
+bool ClusterAssistant::sendOnboardRequest () {
     // send onboard request
     Serial.print(CLUSTER_REQ_ONBOARD);
     Serial.print(CLUSTER_REQ_DELIMITER);
@@ -290,16 +327,18 @@ void ClusterAssistant::sendOnboardRequest () {
     }
     Serial.println("");
     Serial.flush();
+    return true;
 }
 
-void ClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
-    uint8_t pubkey[ENC_PUB_KEY_SIZE];
-    hsm->loadPublicKey(pubkey);
-    encryptor->hexify(pubkey, ENC_PUB_KEY_SIZE);
+bool ClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
+    //uint8_t pubkey[ENC_PUB_KEY_SIZE];
+    hsm->loadPublicKey(pubKey);
+    encryptor->hexify(pubKey, ENC_PUB_KEY_SIZE);
     const char* hexifiedPubKey = encryptor->getHexBuffer();
 
     for (int hexCount = 0; hexCount < ENC_PUB_KEY_SIZE*2; hexCount++) {
         Serial.print(hexifiedPubKey[hexCount]);
     }
     Serial.println("");
+    return true;
 }

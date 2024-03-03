@@ -44,6 +44,13 @@ bool FramLicenseStore::loadLicense (const char* clusterId, uint8_t* buffer) {
     return false;
 }
 
+LicenseStatus FramLicenseStore::getStatus (const char* clusterId) {
+    if (loadLicenseBuffer(clusterId)) {
+        return licenseBuffer.getStatus();
+    }
+    return LicenseUnknown;
+}
+
 bool FramLicenseStore::deleteLicense (const char* clusterId) {
     if (loadLicenseBuffer(clusterId)) {
         licenseBuffer.setStatus(LicenseDeleted);
@@ -70,8 +77,14 @@ bool FramLicenseStore::addLicense (const char* clusterId, const char* signer, ui
     populateKeyBuffer(clusterId);
 
     if (datastore->recordExists(ZoneLicense, (uint8_t*)keyBuffer)) {
-        logConsole("license already exists");
-        return false;
+        logConsole("license already exists, deleting existing");
+        if (deleteLicense(clusterId)) {
+            logConsole("existing license deleted, continuing");
+        }
+        else {
+            logConsole("license delete failed.");
+            return false;
+        }
     }
 
     licenseBuffer.setClusterId(clusterId);

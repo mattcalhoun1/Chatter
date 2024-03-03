@@ -8,6 +8,7 @@
 enum LicenseStatus {
     LicenseActive = (uint8_t)'A',
     LicenseDeleted = (uint8_t)'D',
+    LicenseUnknown = (uint8_t)'U'
 };
 
 class LicenseStore : public StorageBase {

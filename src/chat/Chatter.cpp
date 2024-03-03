@@ -33,6 +33,12 @@ bool Chatter::init (const char* devicePassword) {
                 return false;
             }
 
+            licenseStore = new FramLicenseStore(fram);
+            if (!licenseStore->init()) {
+                logConsole("LicenseStore did not initialize!");
+                return false;
+            }
+
             if(deviceStoreInitialized ()) {
                 if (loadClusterConfig(defaultClusterId)) {
                     hsm = new PseudoHsm(deviceStore, clusterStore);

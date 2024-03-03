@@ -46,6 +46,9 @@ class ClusterManagerBase {
         uint8_t pubKey[ENC_PUB_KEY_SIZE];
         uint8_t hashBuffer[ENC_HASH_SIZE];
         char hexEncodedLicense[ENC_SIGNATURE_SIZE * 2 + 1];
+        uint8_t license[ENC_SIG_BUFFER_SIZE];
+
+        char signerId[CHATTER_DEVICE_ID_SIZE + 1];
 
         char hexEncodedSymmetricKey[ENC_SYMMETRIC_KEY_SIZE * 2 + 1];
         uint8_t symmetricKey[ENC_SYMMETRIC_KEY_SIZE];

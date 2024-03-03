@@ -19,7 +19,9 @@
 #include "../storage/ClusterStore.h"
 #include "../storage/fram/FramTrustStore.h"
 #include "../storage/DeviceStore.h"
+#include "../storage/LicenseStore.h"
 #include "../storage/fram/FramDeviceStore.h"
+#include "../storage/fram/FramLicenseStore.h"
 #include "../storage/fram/FramClusterStore.h"
 #include "../storage/fram/FramPacketStore.h"
 #include "../storage/fram/CachingFramDatastore.h"
@@ -122,6 +124,7 @@ class Chatter : ChatStatusCallback {
     TrustStore* getTrustStore() {return trustStore;}
     PacketStore* getPacketStore() {return packetStore;}
     DeviceStore* getDeviceStore() {return deviceStore;}
+    LicenseStore* getLicenseStore() {return licenseStore;}
     ClusterStore* getClusterStore() {return clusterStore;}
     RTClockBase* getRtc() {return rtc;}
     Hsm* getHsm () {return hsm;}
@@ -160,6 +163,7 @@ class Chatter : ChatStatusCallback {
     PacketStore* packetStore;
     TrustStore* trustStore;
     DeviceStore* deviceStore;
+    LicenseStore* licenseStore;
     ClusterStore* clusterStore;
     Encryptor* encryptor;
     RTClockBase* rtc;

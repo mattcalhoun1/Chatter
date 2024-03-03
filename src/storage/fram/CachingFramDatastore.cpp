@@ -8,6 +8,7 @@ bool CachingFramDatastore::init () {
     zoneMaps[1] = &zoneMap1[0][0];
     zoneMaps[2] = &zoneMap2[0][0];
     zoneMaps[3] = &zoneMap3[0][0];
+    zoneMaps[4] = &zoneMap4[0][0];
 
     if (!lazyLoadCache) {
         loadCacheIfNecessary();
@@ -124,6 +125,11 @@ void CachingFramDatastore::loadCacheIfNecessary () {
                     PacketData packet;
                     readRecord(&packet, s);
                     updateMap(&packet, s);
+                }
+                else if (zoneId[z] == ZoneLicense) {
+                    ClusterLicense license;
+                    readRecord(&license, s);
+                    updateMap(&license, s);
                 }
             }
         }

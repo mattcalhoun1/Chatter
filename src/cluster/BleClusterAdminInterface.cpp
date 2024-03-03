@@ -128,7 +128,6 @@ bool BleClusterAdminInterface::isConnected () {
                 if (bleBuffer->findChar(CLUSTER_CFG_DELIMITER, bleBuffer->getRxBuffer(), bleBuffer->getRxBufferLength()) != 255) {
                     logConsole("handling client input");
                     if (handleClientInput((const char*)bleBuffer->getRxBuffer(), bleBuffer->getRxBufferLength(), &bleDevice)) {
-                        bleBuffer->send("OK");
                         logConsole("Client successfully handled");
                     }
                     else {

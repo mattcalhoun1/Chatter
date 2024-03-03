@@ -161,8 +161,14 @@ bool FramClusterStore::addCluster (const char* clusterId, const char* alias, con
     populateKeyBuffer(clusterId);
 
     if (datastore->recordExists(ZoneCluster, (uint8_t*)keyBuffer)) {
-        logConsole("Cluster already exists");
-        return false;
+        logConsole("Cluster already exists, deleting");
+        if (deleteCluster(clusterId)) {
+            logConsole("Cluster successfully deleted. continuing.");
+        }
+        else {
+            logConsole("Existing cluster failed to delete");
+            return false;
+        }
     }
 
     clusterBuffer.setClusterId(clusterId);

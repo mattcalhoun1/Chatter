@@ -32,8 +32,8 @@ class ClusterAssistant : public ClusterManagerBase {
         virtual bool attemptOnboard ();
 
     protected:
-        virtual void sendOnboardRequest();
-        virtual void sendPublicKey(Hsm* hsm, Encryptor* encryptor);
+        virtual bool sendOnboardRequest();
+        virtual bool sendPublicKey(Hsm* hsm, Encryptor* encryptor);
         virtual ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor);
 };
 

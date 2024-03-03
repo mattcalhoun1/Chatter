@@ -71,7 +71,6 @@ bool FramData::writeToNextSlot (FramRecord* record) {
   // get the next available slot
   uint8_t nextSlot = getNextSlot(record->getZone());
   if (writeRecord(record, nextSlot)) {
-
     // bump the last used slot to what we just used
     uint16_t zoneLoc = zoneLocations[record->getZone()];
     if(fram->write(zoneLoc + 1, nextSlot)) {
