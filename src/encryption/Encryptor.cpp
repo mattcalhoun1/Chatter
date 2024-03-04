@@ -8,6 +8,7 @@ bool Encryptor::init() {
 
 // encrypt the value, place cleartext in encrypted buffer
 void Encryptor::encrypt(const char* plainText, int len) {
+    baseUnencryptedBufferLength = len;
     hsm->prepareForEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
     if (len < ENC_UNENCRYPTED_BUFFER_SIZE) {
         // copy the value to the encrypted buffer
@@ -20,6 +21,7 @@ void Encryptor::encrypt(const char* plainText, int len) {
     }
 }
 void Encryptor::encryptVolatile(const char* plainText, int len) {
+    baseUnencryptedBufferLength = len;
     hsm->prepareForVolatileEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
     if (len < ENC_UNENCRYPTED_BUFFER_SIZE) {
         // copy the value to the encrypted buffer
@@ -35,6 +37,7 @@ void Encryptor::encryptVolatile(const char* plainText, int len) {
 
 // decrypt the value, place cleartext in unencrypted buffer
 void Encryptor::decrypt(uint8_t* encrypted, int len) {
+    baseEncryptedBufferLength = len;
     hsm->prepareForEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
 
     if (len < ENC_ENCRYPTED_BUFFER_SIZE) {
@@ -49,6 +52,7 @@ void Encryptor::decrypt(uint8_t* encrypted, int len) {
 }
 
 void Encryptor::decryptVolatile(uint8_t* encrypted, int len) {
+    baseEncryptedBufferLength = len;
     hsm->prepareForVolatileEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
 
     if (len < ENC_ENCRYPTED_BUFFER_SIZE) {
@@ -120,7 +124,8 @@ bool Encryptor::verify(const byte pubkey[]) {
 }
 
 int Encryptor::findEncryptionBufferEnd (uint8_t* buffer, int maxLen) {
-  for (int i = 0; i < maxLen - 3; i++) {
+    // then encryption buffer is at least the size of unencrypted buffer
+  for (int i = baseUnencryptedBufferLength; i < maxLen - 3; i++) {
     if (buffer[i] == 255 && buffer[i+1] == 255 && buffer[i+1] == 255) {
       return i;
     }
@@ -132,7 +137,8 @@ int Encryptor::findEncryptionBufferEnd (uint8_t* buffer, int maxLen) {
 }
 
 int Encryptor::findDecryptionBufferEnd (uint8_t* buffer, int maxLen) {
-  for (int i = 0; i < maxLen; i++) {
+    // the decrypted length is at least half the size of the encrypted buffer it was based on
+  for (int i = (baseEncryptedBufferLength / 2); i < maxLen; i++) {
     if (buffer[i] == 255 && buffer[i+1] == 255 && buffer[i+1] == 255) {
       return i;
     }

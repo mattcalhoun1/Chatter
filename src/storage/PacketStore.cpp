@@ -11,9 +11,6 @@ int PacketStore::readMessage (const char* senderId, const char* messageId, uint8
     for (int packetNum = lastPacket; packetNum > 0; packetNum--) {
       // Clear the message buffer
       int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer);
-      Serial.print("readMessage packet: ");
-      Serial.print(packetNum);
-      Serial.print(": ");
       if (chunkSize > 0) {
         if (bufferPosition + chunkSize + 1 > maxLength) {
           logConsole("Full message too large for buffer. Truncating!");
@@ -23,10 +20,6 @@ int PacketStore::readMessage (const char* senderId, const char* messageId, uint8
         else {
           memcpy(buffer + bufferPosition, filePacketBuffer, chunkSize);
           bufferPosition += chunkSize;
-          for (int c = 0; c < chunkSize; c++) {
-            Serial.print((char)filePacketBuffer[c]);
-          }
-          Serial.println("");
 
           // update the full length to the new buffer position+1
           fullLength = bufferPosition;//bufferPosition + 1;
@@ -82,6 +75,7 @@ int PacketStore::generateHash (const char* senderId, const char* messageId, uint
       // Read the bytes of the packet into the hasher
       memset(filePacketBuffer, 0, STORAGE_CONTENT_BUFFER_SIZE);
       int chunkSize = readPacket(senderId, messageId, packetNum, filePacketBuffer);
+
       if (chunkSize > 0) {
         hasher.update(filePacketBuffer, chunkSize);
       }
@@ -90,7 +84,6 @@ int PacketStore::generateHash (const char* senderId, const char* messageId, uint
         return 0;
       }
     }
-    Serial.println("");
 
     // Now calculate the hash and put it into the buffer
     hasher.finalize(hashBuffer, hasher.hashSize());

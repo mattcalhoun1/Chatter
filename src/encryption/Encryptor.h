@@ -45,6 +45,9 @@ class Encryptor {
     int getEncryptedBufferLength();
     int getUnencryptedBufferLength();
 
+    int baseUnencryptedBufferLength = 0; // if encrypting, this is what the unecrypted length was, prior to encrypting
+    int baseEncryptedBufferLength = 0; // if decrypting, this is what the encrypted lenvth was, prior to decrypting
+
 
     int generateHash(const char* plainText, int inputLength, uint8_t* hashBuffer);
 

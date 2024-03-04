@@ -130,6 +130,7 @@ class Chatter : ChatStatusCallback {
     Hsm* getHsm () {return hsm;}
 
     void logDebugInfo ();
+    bool isRootDevice (const char* deviceId);
 
   private:
     ChatterDeviceType deviceType;
@@ -149,6 +150,12 @@ class Chatter : ChatStatusCallback {
     bool isExpired();
     bool validateSignature();
     bool validateSignature(bool checkHash);
+
+    bool isSenderKnown (const char* senderId);
+
+    bool sendDeviceInfo (const char* targetDeviceId, bool requestBack);
+    bool receiveDeviceInfo (bool isExchange);
+
     void populateReceiveBufferFlags ();
 
     int numChannels = 0;
@@ -208,6 +215,13 @@ class Chatter : ChatStatusCallback {
     void clearEncryptionKeyBuffer ();
     bool deviceStoreInitialized ();
     bool loadClusterConfig(const char* clusterId);
+
+    // for key exchange
+    uint8_t licenseBuffer[ENC_SIGNATURE_SIZE];
+    uint8_t pubKeyBuffer[ENC_SIGNATURE_SIZE];
+    char licenseSigner[CHATTER_DEVICE_ID_SIZE];
+    uint8_t internalMessageBuffer[CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE];
+    char aliasBuffer[CHATTER_ALIAS_NAME_SIZE];
 };
 
 #endif

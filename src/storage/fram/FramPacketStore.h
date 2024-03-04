@@ -32,6 +32,7 @@ class FramPacketStore : public PacketStore {
         // bridging-related functions
         bool moveMessageToAirOut (const char* sender, const char* messageId);
         bool moveMessageToBridgeOut (const char* sender, const char* messageId);
+        bool moveMessageToQuarantine (const char* sender, const char* messageId);
 
         int readPacketFromAirOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength);
         int readPacketFromBridgeOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength);

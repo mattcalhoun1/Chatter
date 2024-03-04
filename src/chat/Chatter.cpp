@@ -183,6 +183,10 @@ bool Chatter::isExpired() {
     return memcmp(now, nbf, tsLength) < 0 || memcmp(now, na, tsLength) > 0;
 }
 
+bool Chatter::isSenderKnown (const char* senderId) {
+    return trustStore->loadPublicKey((char*)receiveBuffer.sender, senderPublicKey);
+}
+
 bool Chatter::validateSignature() {
     return validateSignature(true);
 }
@@ -333,9 +337,8 @@ bool Chatter::hasMessage () {
 
 void Chatter::populateReceiveBufferFlags () {
     // populates the flags in the receive buffer, using the content sitting in the receive buffer (should contain full header)
-
     // skip over HHH, nbf/na,  and device id
-    int flagPosition = 3 + 12*2 + CHATTER_DEVICE_ID_SIZE + receiveBuffer.headerLength;
+    int flagPosition = 3 + 12*2 + CHATTER_DEVICE_ID_SIZE;//commented out 3/4 + receiveBuffer.headerLength;
 
     receiveBuffer.flags.Flag0 = receiveBuffer.content[flagPosition++];
     receiveBuffer.flags.Flag1 = receiveBuffer.content[flagPosition++];
@@ -410,14 +413,16 @@ bool Chatter::retrieveMessage () {
             // in bridge mode, we look at all packets
             if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0) {
                 bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
-                if (receiveBuffer.encryptionFlag == PacketEncrypted || receiveBuffer.encryptionFlag == PacketSigned) {
 
-                    /*logConsole("To: " + String((char*)receiveBuffer.recipient));
-                    logConsole("From: " + String((char*)receiveBuffer.sender));
-                    logConsole("Message ID: " + String((char*)receiveBuffer.messageId));
-                    logConsole("Chunk ID: " + String((char*)receiveBuffer.chunkId));
-                    logConsole("Length: " + String(receiveBuffer.rawContentLength));
-                    logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));*/
+                /*logConsole("To: " + String((char*)receiveBuffer.recipient));
+                logConsole("From: " + String((char*)receiveBuffer.sender));
+                logConsole("Message ID: " + String((char*)receiveBuffer.messageId));
+                logConsole("Chunk ID: " + String((char*)receiveBuffer.chunkId));
+                logConsole("Length: " + String(receiveBuffer.rawContentLength));
+                logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));*/
+
+
+                if (receiveBuffer.encryptionFlag == PacketEncrypted || receiveBuffer.encryptionFlag == PacketSigned) {
 
                     // in bridge mode or with a signature, we do not decrypt
                     if (mode == BridgeMode || receiveBuffer.encryptionFlag == PacketSigned) {
@@ -458,19 +463,50 @@ bool Chatter::retrieveMessage () {
                         populateReceiveBufferFlags();
                         bool checkHash = mode != BridgeMode; // in bridge mode (no decryption) we cant check the hash, just the sig
                         if (isExpired() == false) {
-                            if (validateSignature(checkHash)) {
-                                // remove the header from the content buffer so the consumer doesn't see it
-                                int actualContentLength = 0;
-                                for (int i = CHATTER_HEADER_SIZE; i < receiveBuffer.contentLength; i++) {
-                                    receiveBuffer.content[i-CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
-                                    actualContentLength++;
+                            // is this a device identity message
+                            if (receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_ID || receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_EXCHANGE_ID) {
+                                if (receiveDeviceInfo(receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_EXCHANGE_ID)) {
+                                    logConsole("Newly trusted device. Checking for quarantined messages...");
+
+                                    // this message does not bubble up to the consumer at all, but 
+                                    // if we have messages from this sender sitting in quarantine, they
+                                    // can bubble up now
+                                    return false;
                                 }
-                                receiveBuffer.content[actualContentLength] = '\0';
-                                receiveBuffer.contentLength = actualContentLength;
-                                receiveBufferMessageType = MessageTypeComplete;
+                                else {
+                                    logConsole("Received bad device info. Not trusting");
+                                    return false;
+                                }
+
+                            } // do we know the sender
+                            else if (isSenderKnown((const char*)receiveBuffer.sender)) {
+                                if (validateSignature(checkHash)) {
+                                    // remove the header from the content buffer so the consumer doesn't see it
+                                    int actualContentLength = 0;
+                                    for (int i = CHATTER_HEADER_SIZE; i < receiveBuffer.contentLength; i++) {
+                                        receiveBuffer.content[i-CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
+                                        actualContentLength++;
+                                    }
+
+                                    receiveBuffer.content[actualContentLength] = '\0';
+                                    receiveBuffer.contentLength = actualContentLength;
+                                    receiveBufferMessageType = MessageTypeComplete;
+                                }
+                                else {
+                                    logConsole("Invalid signature!");
+                                    return false;
+                                }
                             }
                             else {
-                                logConsole("Invalid signature!");
+                                logConsole("Sender is not trusted. Requesting key/license.");
+
+                                // quarantine the message
+                                packetStore->moveMessageToQuarantine((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId);
+
+                                // send request for device info
+                                sendDeviceInfo((const char*)receiveBuffer.sender, true);
+
+                                // the quarantined message should get processed after we have received trusted device info
                                 return false;
                             }
                         }
@@ -651,11 +687,11 @@ int Chatter::generateFooter (const char* recipientDeviceId, char* messageId, uin
     memcpy(fullSignBuffer, headerBuffer, CHATTER_HEADER_SIZE);
     memcpy(fullSignBuffer+(CHATTER_HEADER_SIZE), message, messageLength);
 
-    Serial.println("Sig base: ");
+    /*Serial.println("Sig base " + String(CHATTER_HEADER_SIZE + messageLength) + " bytes: ");
     for (int i = 0; i < CHATTER_HEADER_SIZE + messageLength; i++) {
         Serial.print((char)fullSignBuffer[i]);
     }
-    Serial.println("");
+    Serial.println("");*/
 
     // hash of message, 32 bytes
     int hashSize = encryptor->generateHash((char*)fullSignBuffer, (CHATTER_HEADER_SIZE) + messageLength, hashBuffer);
@@ -832,10 +868,129 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         if (!channel->send(sendBuffer, finalFullLength, address)) {
             return false;
         }
-        logConsole(String("Successfully sent message: ") + String(messageId));
+        logConsole(String("Successfully sent signed message: ") + String(messageId));
+    }
+    else {
+        logConsole("Message sent with no signature.");
     }
 
     return true;
+}
+
+bool Chatter::isRootDevice (const char* deviceId) {
+    // returnt true if the given device is 000 of the current cluster
+    return memcmp(deviceId, clusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE) == 0 && memcmp(deviceId + CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE, "000", 3) == 0;
+}
+
+bool Chatter::receiveDeviceInfo (bool isExchange) {
+    // device info should be sitting in our message buffer. parse it and check it
+    // license should be signed appropriately
+
+    // trim out the header
+    int actualContentLength = 0;
+    for (int i = CHATTER_HEADER_SIZE; i < receiveBuffer.contentLength; i++) {
+        receiveBuffer.content[i-CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
+        actualContentLength++;
+    }
+    if (actualContentLength >= ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + ENC_SIGNATURE_SIZE) {
+        int fullFixedSize = ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2);
+        // pull out the pieces
+        memcpy(pubKeyBuffer, receiveBuffer.content, ENC_PUB_KEY_SIZE);
+        memcpy(licenseSigner, receiveBuffer.content + ENC_PUB_KEY_SIZE, CHATTER_DEVICE_ID_SIZE);
+
+        // dehex the sig into the license buffer
+        encryptor->hexCharacterStringToBytesMax(licenseBuffer, (const char*)receiveBuffer.content + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, ENC_SIGNATURE_SIZE * 2, ENC_SIGNATURE_SIZE);
+
+        memset(aliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
+        memcpy(aliasBuffer, receiveBuffer.content + fullFixedSize, actualContentLength - fullFixedSize);
+
+        // if the network requires root sig, the signer must be root
+        if (!isRootDevice(licenseSigner)) {
+            if(clusterStore->getLicenseType(clusterId) == ClusterLicenseRoot) {
+                logConsole("Devices must be licensed by root on this network");
+                return false;
+            }
+            else if (!trustStore->loadPublicKey(licenseSigner, encryptor->getPublicKeyBuffer())) {
+                // we must know this signer, or we can't proceed
+                logConsole("Non-Root license are OK ont the network, but signer is not known to this device");
+                return false;
+            }
+        }
+
+        // Load the signer's key
+        if(trustStore->loadPublicKey(licenseSigner, encryptor->getPublicKeyBuffer())) {
+            // hash the provided pub key
+            int hashLength = encryptor->generateHash((const char*)pubKeyBuffer, ENC_PUB_KEY_SIZE, encryptor->getMessageBuffer());
+
+            // check the sig
+            encryptor->setSignatureBuffer(licenseBuffer);
+            if (encryptor->verify()) {
+                logConsole("Received valid license for device!");
+
+                // add it to storage
+                if(trustStore->addTrustedDevice ((const char*)receiveBuffer.sender, aliasBuffer, pubKeyBuffer, true)) {
+                    logConsole("Device now trusted.");
+                }
+
+                // send our own, if this is an exchange
+                if (isExchange) {
+                    sendDeviceInfo((const char*)receiveBuffer.sender, false);
+                }
+
+                return true;
+            }
+        }
+    }
+    else {
+        logConsole("Device info message size: " + String(actualContentLength) + "is not the correct size ");
+    }
+
+    return false;
+}
+
+bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
+    // Send our own key/license, with flag set to receive theirs
+    logConsole("Sending device info");
+
+    // load pub key into buffer
+    hsm->loadPublicKey(pubKeyBuffer);
+
+    if (isRootDevice(deviceId)) {
+        // sha256 this device's own pub key
+        int hashLength = encryptor->generateHash((const char*)pubKeyBuffer, ENC_PUB_KEY_SIZE, encryptor->getMessageBuffer());
+        
+        // sign it
+        if (encryptor->signMessage()) {
+            memcpy(licenseBuffer, encryptor->getSignatureBuffer(), ENC_SIGNATURE_SIZE);
+            memcpy(licenseSigner, deviceId, CHATTER_DEVICE_ID_SIZE);
+            logConsole("Providing self-signed license.");
+        }
+        else {
+            logConsole("Sign of own key failed.");
+            return false;
+        }
+    }
+    else {
+        // load our license from storage
+        licenseStore->loadLicense(clusterId, licenseBuffer);
+        licenseStore->loadSignerId(clusterId, licenseSigner);
+        logConsole("Sending root-signed license");
+    }
+
+    ChatterMessageFlags flg;
+    flg.Flag4 = requestBack ? FLAG_CTRL_TYPE_EXCHANGE_ID : FLAG_CTRL_TYPE_ID;
+
+    memset(internalMessageBuffer, 0, CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE);
+    memcpy(internalMessageBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE, licenseSigner, CHATTER_DEVICE_ID_SIZE);
+
+    // hex the sig (it likes to have null byte sequences, which messes things up on the other end sometimes)
+    encryptor->hexify(licenseBuffer, ENC_SIGNATURE_SIZE);
+
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, encryptor->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2), clusterAlias, strlen(clusterAlias));
+
+    return send(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
 }
 
 // chatter packet level

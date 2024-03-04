@@ -29,7 +29,16 @@ bool FramPacketStore::savePacket (ChatterPacket* packet) {
     int bytesToWrite = packet->isMetadata ? packet->rawContentLength : packet->contentLength;
 
     packetBuffer.setFullPacket(packet->content, bytesToWrite);
+
+    if (bytesToWrite == 0) {
+        logConsole("Warning: empty packet being saved.");
+    }
+
     bool success = datastore->writeToNextSlot(&packetBuffer);    
+
+    if (!success) {
+        logConsole("Failed to save packet!");
+    }
 
     //datastore->logCache();
 
@@ -149,6 +158,10 @@ bool FramPacketStore::moveMessageToAirOut (const char* sender, const char* messa
 
 bool FramPacketStore::moveMessageToBridgeOut (const char* sender, const char* messageId) {
     return saveMessageStatus(sender, messageId, PacketReceived, PacketBridgeOut);
+}
+
+bool FramPacketStore::moveMessageToQuarantine (const char* sender, const char* messageId) {
+    return saveMessageStatus(sender, messageId, PacketReceived, PacketQuarantined);
 }
 
 int FramPacketStore::readPacketFromAirOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) {

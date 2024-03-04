@@ -30,6 +30,7 @@ class PacketStore : public StorageBase {
 
         virtual bool moveMessageToAirOut (const char* sender, const char* messageId) = 0;
         virtual bool moveMessageToBridgeOut (const char* sender, const char* messageId) = 0;
+        virtual bool moveMessageToQuarantine (const char* sender, const char* messageId) = 0;
 
         virtual int readPacketFromAirOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) = 0;
         virtual int readPacketFromBridgeOut (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) = 0;

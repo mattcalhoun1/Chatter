@@ -112,7 +112,8 @@ bool FramData::writeRecord (FramRecord* record, uint8_t slot) {
   uint16_t bytesToWrite = actualDataSize;
   if (zoneEncrypted[record->getZone()]) {
     encrypt(unencryptedBuffer, actualDataSize);
-    bytesToWrite = guessEncryptionBufferSize(encryptedBuffer, 0);
+    //bytesToWrite = guessEncryptionBufferSize(encryptedBuffer, 0);
+    bytesToWrite = zoneDataSizes[record->getZone()]; // need to write the 0's as well so we dont get random junk
     fram->write(dataPosition, encryptedBuffer, bytesToWrite);
   }
   else {
@@ -137,7 +138,8 @@ bool FramData::readRecord (FramRecord* record, uint8_t slot) {
     // read into the encrypted buffer
     memset(encryptedBuffer, 0, zoneDataSizes[record->getZone()]);
     fram->read(dataPosition, encryptedBuffer, zoneDataSizes[record->getZone()]);
-    decrypt(encryptedBuffer, FRAM_ENC_BUFFER_SIZE);
+    //decrypt(encryptedBuffer, FRAM_ENC_BUFFER_SIZE);
+    decrypt(encryptedBuffer, guessEncryptionBufferSize(encryptedBuffer, 0)); // don't decrypt null bytes from the record padding
   }
   else {
     // write the encrypted record to the appropriate slot
