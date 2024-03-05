@@ -537,14 +537,19 @@ bool Chatter::retrieveMessage () {
                     return packetStore->savePacket(&receiveBuffer);
                 }
 
-                logConsole("Received raw looking packet (not saving) of length: " + String(receiveBuffer.contentLength));
+                // this is an unencrypted payload packet
+                // just save as is, it could be part of a pub key exchange
+                logConsole("Received unencrypted payload packet, saving");
+                memcpy(receiveBuffer.content, receiveBuffer.rawMessage + receiveBuffer.headerLength, receiveBuffer.contentLength);
+                return packetStore->savePacket(&receiveBuffer);
+
                 // if we get here, it means no encryption is expected
-                const uint8_t* msg = hotChannel->getMessageType() == MessageTypeText ? ((uint8_t*)hotChannel->getTextMessage()) : hotChannel->getRawMessage();
+                /*const uint8_t* msg = hotChannel->getMessageType() == MessageTypeText ? ((uint8_t*)hotChannel->getTextMessage()) : hotChannel->getRawMessage();
                 for (int i = 0; i < hotChannel->getMessageSize(); i++) {
                     this->receiveBuffer.content[i] = msg[i];
                 }
                 receiveBuffer.contentLength = hotChannel->getMessageSize();
-                receiveBufferMessageType = hotChannel->getMessageType();
+                receiveBufferMessageType = hotChannel->getMessageType();*/
             }
             else {
                 logConsole("This device (" + String(deviceId) + ") is not the receipient (" + String((char*)receiveBuffer.recipient) + "). Ignoring.");
@@ -604,17 +609,17 @@ bool Chatter::broadcast(uint8_t *message, uint8_t length) {
     broadcastAddress[CHATTER_DEVICE_ID_SIZE] = '\0';
 
     // prime with a header
-    primeSendBuffer (CHATTER_BROADCAST_ID, channel, false, false, false, "ABC", "001");
+    primeSendBuffer (CHATTER_BROADCAST_ID, channel, false, false, false, "ABC", "001", false);
 
     // do any encoding/encryption necessary on the content and get the final length
-    int finalFullLength = populateSendBufferContent (message, length, channel, false);
+    int finalFullLength = populateSendBufferContent (message, length, channel, false, false);
 
     return channel->broadcast(sendBuffer, finalFullLength);
 }
 
 
 // gets a header ready for message sending
-void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId) {
+void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId, bool forceUnencrypted) {
     memset(this->sendBuffer, 0, CHATTER_FULL_BUFFER_LEN);
 
     int bufferPos = 0;
@@ -628,7 +633,10 @@ void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* ch
     }
 
     // packet security flag
-    if (isFooter) {
+    if (forceUnencrypted) {
+        sendBuffer[bufferPos++] = PacketClear;
+    }    
+    else if (isFooter) {
         sendBuffer[bufferPos++] = PacketSigned;
     }
     else if (isHeader) {
@@ -654,11 +662,11 @@ void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* ch
     }
 }
 
-int Chatter::populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata) {
+int Chatter::populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted) {
     uint8_t* rawContentArea = sendBuffer + CHATTER_PACKET_HEADER_LENGTH;
     int fullMessageLength = length + CHATTER_PACKET_HEADER_LENGTH; // if encrypted, this length will change
 
-    if (channel->isEncrypted() && isMetadata == false) {
+    if (channel->isEncrypted() && isMetadata == false && forceUnencrypted == false) {
         // encrypt the message
         encryptor->encrypt((const char*)message, length);
         int encryptedSize = encryptor->getEncryptedBufferLength();
@@ -788,6 +796,10 @@ bool Chatter::send(uint8_t *message, int length, const char* recipientDeviceId, 
     return sendViaIntermediary(message, length, recipientDeviceId, recipientDeviceId, flags, getDefaultChannel());
 }
 
+bool Chatter::sendUnencrypted(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags) {
+    return sendViaIntermediary(message, length, recipientDeviceId, recipientDeviceId, flags, getDefaultChannel(), true);
+}
+
 bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId) {
     return sendViaIntermediary(message, length, recipientDeviceId, intermediaryDeviceId, nullptr, getDefaultChannel());
 }
@@ -800,7 +812,11 @@ bool Chatter::send(uint8_t *message, int length, const char* recipientDeviceId, 
     return sendViaIntermediary(message, length, recipientDeviceId, recipientDeviceId, flags, channel);
 }
 
-bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel) {
+bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted) {
+    if (forceUnencrypted) {
+        logConsole("Warning: Unencrypted send!");
+    }
+
     uint8_t address = channel->getAddress(intermediaryDeviceId);
     if (strcmp(recipientDeviceId, intermediaryDeviceId) != 0) {
         logConsole("Sending through intermediary: " + String(intermediaryDeviceId) + " @ " + String(address));
@@ -825,9 +841,9 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
     char chunkId[CHATTER_CHUNK_ID_SIZE];
     chunkId[CHATTER_CHUNK_ID_SIZE - 1] = '\0';
     sprintf(chunkId, "%03d", chunks);
-    primeSendBuffer (recipientDeviceId, channel, false, true, false, messageId, chunkId);
+    primeSendBuffer (recipientDeviceId, channel, false, true, false, messageId, chunkId, forceUnencrypted);
     int thisHeaderLength = generateHeader(recipientDeviceId, messageId, flags);
-    int fullMetadataLength = populateSendBufferContent (headerBuffer, thisHeaderLength, channel, true);
+    int fullMetadataLength = populateSendBufferContent (headerBuffer, thisHeaderLength, channel, true, forceUnencrypted);
     if (!channel->send(sendBuffer, fullMetadataLength, address)) {
         logConsole("Header send failed");
         return false;
@@ -839,7 +855,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         sprintf(chunkId, "%03d", chunks - chunkNum);        
 
         // prime with a header
-        primeSendBuffer (recipientDeviceId, channel, false, false, false, messageId, chunkId);
+        primeSendBuffer (recipientDeviceId, channel, false, false, false, messageId, chunkId, forceUnencrypted);
 
         // do any encoding/encryption necessary on the content and get the final length
         // because chunk 1 was the header, the message position is offset by message + (chunkNum-1)*contentChunkSize
@@ -847,7 +863,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         uint8_t* messagePosition = message + ((chunkNum-1) * contentChunkSize);
 
         //logConsole("next chunk starts at position: "  + String(chunkNum * contentChunkSize) + " of " + String(length));
-        int finalFullLength = populateSendBufferContent (messagePosition, thisChunkLength, channel, false);
+        int finalFullLength = populateSendBufferContent (messagePosition, thisChunkLength, channel, false, forceUnencrypted);
 
         // send it
         if (!channel->send(sendBuffer, finalFullLength, address)) {
@@ -862,9 +878,9 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         int thisFooterLength = generateFooter(recipientDeviceId, messageId, message, length);
 
         // prime with a header
-        primeSendBuffer (recipientDeviceId, channel, true, false, true, messageId, "000");
+        primeSendBuffer (recipientDeviceId, channel, true, false, true, messageId, "000", forceUnencrypted);
 
-        int finalFullLength = populateSendBufferContent (footerBuffer, thisFooterLength, channel, true); // don't encrypt footer, so sig can be validated
+        int finalFullLength = populateSendBufferContent (footerBuffer, thisFooterLength, channel, true, forceUnencrypted); // don't encrypt footer, so sig can be validated
         if (!channel->send(sendBuffer, finalFullLength, address)) {
             return false;
         }
@@ -990,7 +1006,8 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
     memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, encryptor->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
     memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2), clusterAlias, strlen(clusterAlias));
 
-    return send(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
+    // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
+    return sendUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
 }
 
 // chatter packet level

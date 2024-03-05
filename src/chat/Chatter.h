@@ -98,13 +98,14 @@ class Chatter : ChatStatusCallback {
 
     bool send(uint8_t *message, int length, const char* recipientDeviceId);
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags);
+    bool sendUnencrypted(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags);
 
     bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId);
     bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags);
 
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterChannel* channel);
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel);
-    bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel);
+    bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted = false);
 
     bool isRunning () {return running;}
 
@@ -138,8 +139,8 @@ class Chatter : ChatStatusCallback {
     bool running = false;
 
     void ingestPacketMetadata (ChatterChannel* channel);
-    void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId);
-    int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata);
+    void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId,  bool forceUnencrypted);
+    int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted);
 
     void generateMessageId (char* messageIdBuffer);
 

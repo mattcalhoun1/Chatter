@@ -121,16 +121,6 @@ bool ClusterAssistant::attemptOnboard () {
 
 ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor) {
 
-/*
-#define CLUSTER_CFG_TRUST "TRUST"
-#define CLUSTER_CFG_KEY "KEY"
-#define CLUSTER_CFG_IV "IV"
-#define CLUSTER_CFG_WIFI "WIFI"
-#define CLUSTER_CFG_TIME "TIME"
-#define CLUSTER_CFG_FREQ "FREQ"
-#define CLUSTER_CFG_DEVICE "DEVICE"
-*/
-
     int dataPosition = -1;
     for (int i = 0; i < bytesRead; i++) {
         if (dataLine[i] == CLUSTER_CFG_DELIMITER) {
@@ -194,21 +184,32 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             return ClusterTrustStore;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_KEY, strlen(CLUSTER_CFG_KEY)) == 0) {
+            // not all devices store the key
             hexEncodedSymmetricKey[ENC_SYMMETRIC_KEY_SIZE*2] = '\0';
-            memcpy(hexEncodedSymmetricKey, clusterData, ENC_SYMMETRIC_KEY_SIZE*2);
+            if (chatter->getDeviceType() == ChatterDeviceCommunicator) {
+                memcpy(hexEncodedSymmetricKey, clusterData, ENC_SYMMETRIC_KEY_SIZE*2);
+            }
+            else {
+                memcpy(hexEncodedSymmetricKey, "E70455AE70455AE70455AE70455AE70", ENC_SYMMETRIC_KEY_SIZE*2); // topsecret
+            }
 
             encryptor->hexCharacterStringToBytesMax(symmetricKey, hexEncodedSymmetricKey, ENC_SYMMETRIC_KEY_SIZE*2, ENC_SYMMETRIC_KEY_SIZE);
-            Serial.print("KEY: "); Serial.println(hexEncodedSymmetricKey);
+            //Serial.print("KEY: "); Serial.println(hexEncodedSymmetricKey);
             
             return ClusterKey;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_IV, strlen(CLUSTER_CFG_IV)) == 0) {
             hexEncodedIv[ENC_IV_SIZE*2] = '\0';
-            memcpy(hexEncodedIv, clusterData, ENC_IV_SIZE*2);
+            if (chatter->getDeviceType() == ChatterDeviceCommunicator) {
+                memcpy(hexEncodedIv, clusterData, ENC_IV_SIZE*2);
+            }
+            else {
+                memcpy(hexEncodedIv, "E70455AE70455AE7", ENC_IV_SIZE*2); // topsecret
+            }
 
             encryptor->hexCharacterStringToBytesMax(iv, hexEncodedIv, ENC_IV_SIZE*2, ENC_IV_SIZE);
 
-            Serial.print("IV: "); + Serial.println(hexEncodedIv);
+            //Serial.print("IV: "); + Serial.println(hexEncodedIv);
             return ClusterIv;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_WIFI_SSID, strlen(CLUSTER_CFG_WIFI_SSID)) == 0) {
