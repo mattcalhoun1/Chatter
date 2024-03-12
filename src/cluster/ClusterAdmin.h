@@ -21,11 +21,11 @@ class ClusterAdmin : public ClusterManagerBase {
         ClusterAdmin (Chatter* _chatter) : ClusterManagerBase (_chatter) {}
         bool handleAdminRequest ();
         bool genesis ();
-        bool genesisRandom ();
+        bool genesisRandom (const char* deviceAlias);
 
     protected:
-        bool syncDevice (const char* hostClusterId, const char* deviceId, const char* alias);
-        bool onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey); 
+        bool syncDevice (const char* hostClusterId, const char* deviceId, const char* deviceAlias);
+        bool onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey, const char* deviceAlias); 
 
         virtual bool dumpTruststore (const char* hostClusterId); 
         virtual bool dumpSymmetricKey(const char* hostClusterId);
@@ -34,12 +34,12 @@ class ClusterAdmin : public ClusterManagerBase {
         virtual bool dumpFrequency (const char* hostClusterId);
         virtual bool dumpChannels (const char* hostClusterId);
         virtual bool dumpAuthType (const char* hostClusterId);
-        virtual bool dumpDevice (const char* deviceId, const char* alias);
-        virtual bool dumpLicense (const char* deviceId);
+        virtual bool dumpDevice (const char* deviceId, const char* deviceAlias);
+        virtual bool dumpLicense (const char* deviceId, const char* deviceAlias);
         AdminRequestType extractRequestType (const char* request);
         ChatterDeviceType extractDeviceType (const char* request);
 
-        virtual bool generateEncodedLicense (const char* deviceId);
+        virtual bool generateEncodedLicense (const char* deviceId, const char* deviceAlias);
 };
 
 #endif

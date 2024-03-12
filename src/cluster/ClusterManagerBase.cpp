@@ -1,10 +1,15 @@
 #include "ClusterManagerBase.h"
 
-bool ClusterManagerBase::ingestPublicKey (byte* buffer) {
+bool ClusterManagerBase::ingestPublicKeyAndAlias (byte* pubKeyBuffer, char* aliasBuffer) {
     int bytesRead = 0;
     bool validKey = true; // assume valid until we find a bad byte
     unsigned long startTime = millis();
     unsigned long maxWait = 3000;//3 sec
+    int keyBytesRead = 0;
+    int aliasBytesRead = 0;
+
+    memset(pubKeyBuffer, 0, ENC_PUB_KEY_SIZE * 2);
+    memset(aliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
 
     // pub key can only be hex with no spaces
     while ((millis() - startTime < maxWait) && bytesRead < ENC_PUB_KEY_SIZE && validKey) {
@@ -14,19 +19,25 @@ bool ClusterManagerBase::ingestPublicKey (byte* buffer) {
                 Serial.read();
             }
             else {
-                buffer[bytesRead++] = (byte)Serial.read();
+                if (keyBytesRead < ENC_PUB_KEY_SIZE*2) {
+                    keyBytesRead++;
+                    pubKeyBuffer[bytesRead++] = (byte)Serial.read();
 
-                if ((buffer[bytesRead-1] >= '0' && buffer[bytesRead-1] <= '9') || (buffer[bytesRead-1] >= 'A' && buffer[bytesRead-1] <= 'F')) {
-                    // we have a valid key byte
+                    if ((pubKeyBuffer[bytesRead-1] >= '0' && pubKeyBuffer[bytesRead-1] <= '9') || (pubKeyBuffer[bytesRead-1] >= 'A' && pubKeyBuffer[bytesRead-1] <= 'F')) {
+                        // we have a valid key byte
+                    }
+                    else {
+                        validKey = false;
+                    }
                 }
-                else {
-                    validKey = false;
+                else if (aliasBytesRead < CHATTER_ALIAS_NAME_SIZE) {
+                    aliasBuffer[aliasBytesRead++] = (char)Serial.read();
                 }
             }
         }
     }
 
-    if (bytesRead == ENC_PUB_KEY_SIZE && validKey) {
+    if (keyBytesRead == ENC_PUB_KEY_SIZE && validKey && aliasBytesRead >= CHATTER_MIN_ALIAS_LENGTH) {
         return true;
     }
 

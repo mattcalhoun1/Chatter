@@ -62,7 +62,8 @@ bool BleClusterAdminInterface::handleClientInput (const char* input, int inputLe
     logConsole("Admin request type: " + String(requestType) + " from device type: " + String(deviceType));// + " Received " + input);
     if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
         // pub key is required
-        if (ingestPublicKey(chatter->getEncryptor()->getPublicKeyBuffer(), device)) {
+        memset(alias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
+        if (ingestPublicKeyAndAlias(chatter->getEncryptor()->getPublicKeyBuffer(), alias, device)) {
 
             // future enhancement: this would be a good point to generate a message to challenge for a signature. 
 
@@ -85,7 +86,7 @@ bool BleClusterAdminInterface::handleClientInput (const char* input, int inputLe
                 // we don't know this key, which is to be expected if it's on onboard
                 if (requestType == AdminRequestOnboard) {
                     logConsole("this is a new device, onboarding");
-                    return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer());
+                    return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer(), alias);
                 }
             }
         }
@@ -160,7 +161,7 @@ bool BleClusterAdminInterface::isConnected () {
     return connected;
 }
 
-bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevice) {
+bool BleClusterAdminInterface::ingestPublicKeyAndAlias (byte* pubKeyBuffer, char* aliasBuffer, BLEDevice* bleDevice) {
     bool validKey = true; // assume valid until we find a bad byte
     unsigned long startTime = millis();
 
@@ -172,6 +173,7 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevi
         if(bleBuffer->receiveRxBufferFromClient(bleDevice)) {
             uint8_t* rxBuffer = bleBuffer->getRxBuffer();
             uint8_t rxBufferLength = bleBuffer->getRxBufferLength();
+
             if (memcmp(rxBuffer, "PUB:", 4) == 0) {
                 memcpy(hexEncodedPubKey, rxBuffer + 4, rxBufferLength - 4);
 
@@ -186,13 +188,24 @@ bool BleClusterAdminInterface::ingestPublicKey (byte* buffer, BLEDevice* bleDevi
                     }
                 }
 
-                if (rxBufferLength == (ENC_PUB_KEY_SIZE * 2) + 4 && validKey) {
+                if (rxBufferLength > (ENC_PUB_KEY_SIZE * 2) + 4 && validKey) {
                     logConsole("Public key appears valid");
 
-                    // decode the pub key into the provided buffer
-                    //memcpy(chatter->getEncryptor()->getHexBuffer(), rxBuffer + 4, ENC_PUB_KEY_SIZE * 2);
-                    chatter->getEncryptor()->hexCharacterStringToBytesMax(buffer, (const char*)rxBuffer + 4, ENC_PUB_KEY_SIZE * 2, ENC_PUB_KEY_SIZE);
-                    return true;
+                    // make sure alias is valid
+                    if (rxBufferLength >= (ENC_PUB_KEY_SIZE * 2) + 4 + CHATTER_MIN_ALIAS_LENGTH) {
+                        // decode the pub key into the provided buffer
+                        chatter->getEncryptor()->hexCharacterStringToBytesMax(pubKeyBuffer, (const char*)rxBuffer + 4, ENC_PUB_KEY_SIZE * 2, ENC_PUB_KEY_SIZE);
+
+                        // the remaining rx buffer is the device alias
+                        memset(aliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
+                        memcpy(aliasBuffer, (const char*)rxBuffer + 4 + ENC_PUB_KEY_SIZE*2, rxBufferLength - ((ENC_PUB_KEY_SIZE*2) + 4));
+
+                        Serial.print("Device Alias: "); Serial.println(aliasBuffer);
+                        return true;
+                    }
+                    else {
+                        logConsole("alias is too short!");
+                    }
                 }
                 else {
                     logConsole("Public key received appears invalid");
@@ -417,8 +430,8 @@ bool BleClusterAdminInterface::dumpDevice (const char* deviceId, const char* ali
     return true;
 }
 
-bool BleClusterAdminInterface::dumpLicense (const char* deviceId) {
-    if (generateEncodedLicense(deviceId)) {
+bool BleClusterAdminInterface::dumpLicense (const char* deviceId, const char* deviceAlias) {
+    if (generateEncodedLicense(deviceId, deviceAlias)) {
         bleBuffer->clearTxBuffer();
         sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_LICENSE, CLUSTER_CFG_DELIMITER, chatter->getDeviceId(), hexEncodedLicense);
         bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_LICENSE) + 1 + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE * 2));

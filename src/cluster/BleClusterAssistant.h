@@ -17,7 +17,7 @@ class BleClusterAssistant : public ClusterAssistantInterface {
         bool connectToPeripheral();
         bool sendOnboardRequest();
         bool establishBleBuffer ();
-        bool sendPublicKey(Hsm* hsm, Encryptor* encryptor);
+        bool sendPublicKeyAndAlias(Hsm* hsm, Encryptor* encryptor, const char* deviceAlias);
         bool waitForPrompt (const char* expectedPrompt, int maxWaitTime);
 
         BLEDevice peripheral;

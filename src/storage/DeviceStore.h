@@ -13,9 +13,9 @@ class DeviceStore : public StorageBase {
         virtual bool getDefaultClusterId (char* buffer) = 0;
         virtual bool loadSigningKey (uint8_t* buffer) = 0;
 
-        virtual bool setDeviceName (char* newDeviceName) = 0;
-        virtual bool setDefaultClusterId (char* newDefaultCluster) = 0;
-        virtual bool setSigningKey (uint8_t* newSigningKey) = 0;
+        virtual bool setDeviceName (const char* newDeviceName) = 0;
+        virtual bool setDefaultClusterId (const char* newDefaultCluster) = 0;
+        virtual bool setSigningKey (const uint8_t* newSigningKey) = 0;
 };
 
 #endif

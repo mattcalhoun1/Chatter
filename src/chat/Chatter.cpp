@@ -40,6 +40,9 @@ bool Chatter::init (const char* devicePassword) {
             }
 
             if(deviceStoreInitialized ()) {
+                logConsole("Connecting to Default Cluster: ");
+                logConsole(defaultClusterId);
+
                 if (loadClusterConfig(defaultClusterId)) {
                     hsm = new PseudoHsm(deviceStore, clusterStore);
                     if (!hsm->init(clusterId)){
@@ -908,17 +911,19 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
         receiveBuffer.content[i-CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
         actualContentLength++;
     }
-    if (actualContentLength >= ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + ENC_SIGNATURE_SIZE) {
-        int fullFixedSize = ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2);
+    if (actualContentLength >= ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + ENC_SIGNATURE_SIZE + CHATTER_ALIAS_NAME_SIZE) {
+        int fullFixedSize = ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + CHATTER_ALIAS_NAME_SIZE;
         // pull out the pieces
         memcpy(pubKeyBuffer, receiveBuffer.content, ENC_PUB_KEY_SIZE);
-        memcpy(licenseSigner, receiveBuffer.content + ENC_PUB_KEY_SIZE, CHATTER_DEVICE_ID_SIZE);
+        memcpy(deviceAliasBuffer, receiveBuffer.content + ENC_PUB_KEY_SIZE, CHATTER_ALIAS_NAME_SIZE);
+
+        memcpy(licenseSigner, receiveBuffer.content + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, CHATTER_DEVICE_ID_SIZE);
 
         // dehex the sig into the license buffer
         encryptor->hexCharacterStringToBytesMax(licenseBuffer, (const char*)receiveBuffer.content + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, ENC_SIGNATURE_SIZE * 2, ENC_SIGNATURE_SIZE);
 
-        memset(aliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
-        memcpy(aliasBuffer, receiveBuffer.content + fullFixedSize, actualContentLength - fullFixedSize);
+        memset(clusterAliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
+        memcpy(clusterAliasBuffer, receiveBuffer.content + fullFixedSize, actualContentLength - fullFixedSize);
 
         // if the network requires root sig, the signer must be root
         if (!isRootDevice(licenseSigner)) {
@@ -935,8 +940,12 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
 
         // Load the signer's key
         if(trustStore->loadPublicKey(licenseSigner, encryptor->getPublicKeyBuffer())) {
-            // hash the provided pub key
-            int hashLength = encryptor->generateHash((const char*)pubKeyBuffer, ENC_PUB_KEY_SIZE, encryptor->getMessageBuffer());
+
+            // hash the provided pub key and alias
+            memset(fullSignBuffer, 0, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE);
+            memcpy(fullSignBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
+            memcpy(fullSignBuffer, deviceAliasBuffer, CHATTER_ALIAS_NAME_SIZE);
+            int hashLength = encryptor->generateHash((const char*)fullSignBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, encryptor->getMessageBuffer());
 
             // check the sig
             encryptor->setSignatureBuffer(licenseBuffer);
@@ -944,8 +953,10 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
                 logConsole("Received valid license for device!");
 
                 // add it to storage
-                if(trustStore->addTrustedDevice ((const char*)receiveBuffer.sender, aliasBuffer, pubKeyBuffer, true)) {
+                if(trustStore->addTrustedDevice ((const char*)receiveBuffer.sender, deviceAliasBuffer, pubKeyBuffer, true)) {
                     logConsole("Device now trusted.");
+                    logConsole("Alias: ");
+                    logConsole(deviceAliasBuffer);
                 }
 
                 // send our own, if this is an exchange
@@ -972,8 +983,13 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
     hsm->loadPublicKey(pubKeyBuffer);
 
     if (isRootDevice(deviceId)) {
+        // use the full sign buffer to hash things
+        memset(fullSignBuffer, 0, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE);
+        memcpy(fullSignBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
+        memcpy(fullSignBuffer + ENC_PUB_KEY_SIZE, deviceAlias, strlen(deviceAlias));
+
         // sha256 this device's own pub key
-        int hashLength = encryptor->generateHash((const char*)pubKeyBuffer, ENC_PUB_KEY_SIZE, encryptor->getMessageBuffer());
+        int hashLength = encryptor->generateHash((const char*)fullSignBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, encryptor->getMessageBuffer());
         
         // sign it
         if (encryptor->signMessage()) {
@@ -998,7 +1014,8 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
 
     memset(internalMessageBuffer, 0, CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE);
     memcpy(internalMessageBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
-    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE, licenseSigner, CHATTER_DEVICE_ID_SIZE);
+    memcpy(internalMessageBuffer, deviceAlias, strlen(deviceAlias));
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, licenseSigner, CHATTER_DEVICE_ID_SIZE);
 
     // hex the sig (it likes to have null byte sequences, which messes things up on the other end sometimes)
     encryptor->hexify(licenseBuffer, ENC_SIGNATURE_SIZE);
@@ -1100,10 +1117,12 @@ bool Chatter::loadClusterConfig (const char* newClusterId) {
 
 bool Chatter::deviceStoreInitialized () {
     if (deviceStore->init()) {
+        memset(deviceAlias, 0, CHATTER_ALIAS_NAME_SIZE+1);
         // check if we already have a device id
-        if (deviceStore->loadDeviceName (deviceId)) {
-            logConsole("Device: ");
-            logConsole(deviceId);
+        if (deviceStore->loadDeviceName (deviceAlias)) {
+            deviceInitialized = true;
+            logConsole("Device Alias: ");
+            logConsole(deviceAlias);
 
             return deviceStore->getDefaultClusterId(defaultClusterId);
         }

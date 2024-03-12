@@ -23,7 +23,7 @@ bool BleClusterAssistant::attemptOnboard () {
         if (sendOnboardRequest()) {
             logConsole("Onboard request sent and acknowledged. Sending public key.");
 
-            if (sendPublicKey(hsm, encryptor)) {
+            if (sendPublicKeyAndAlias(hsm, encryptor, chatter->getDeviceAlias())) {
                 logConsole("Public key accepted. Beginning onboard.");
 
                 bool receivedId = false;
@@ -214,7 +214,7 @@ bool BleClusterAssistant::establishBleBuffer () {
   return false;
 }
 
-bool BleClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
+bool BleClusterAssistant::sendPublicKeyAndAlias (Hsm* hsm, Encryptor* encryptor, const char* deviceAlias) {
     hsm->loadPublicKey(pubKey);
     encryptor->hexify(pubKey, ENC_PUB_KEY_SIZE);
     const char* hexifiedPubKey = encryptor->getHexBuffer();
@@ -223,7 +223,8 @@ bool BleClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
     uint8_t* txBuffer = bleBuffer->getTxBuffer();
     memcpy(txBuffer, "PUB:", 4);
     memcpy(txBuffer+4, (uint8_t*)encryptor->getHexBuffer(), ENC_PUB_KEY_SIZE*2);
-    bleBuffer->setTxBufferLength(ENC_PUB_KEY_SIZE*2 + 4);
+    memcpy(txBuffer+4+(ENC_PUB_KEY_SIZE*2), deviceAlias, strlen(deviceAlias));
+    bleBuffer->setTxBufferLength(ENC_PUB_KEY_SIZE*2 + 4 + strlen(deviceAlias));
 
     return bleBuffer->sendTxBufferToClient();
 }

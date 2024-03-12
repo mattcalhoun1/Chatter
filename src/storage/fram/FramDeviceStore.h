@@ -22,16 +22,16 @@ class FramDeviceStore : public DeviceStore {
         bool getDefaultClusterId (char* buffer);
         bool loadSigningKey (uint8_t* buffer);
 
-        bool setDeviceName (char* newName);
-        bool setDefaultClusterId (char* newDefaultCluster);
-        bool setSigningKey (uint8_t* newSigningKey);
+        bool setDeviceName (const char* newName);
+        bool setDefaultClusterId (const char* newDefaultCluster);
+        bool setSigningKey (const uint8_t* newSigningKey);
 
     protected:
         FramData* datastore;
         DeviceConfig configBuffer;
 
-        bool loadBuffer (const char* deviceKeyName, char* buffer);
-        bool saveConfig (const char* deviceKeyName, char* newVal);
+        bool loadBuffer (const char* deviceKeyName, char* buffer, int maxLength);
+        bool saveConfig (const char* deviceKeyName, const char* newVal);
 };
 
 #endif

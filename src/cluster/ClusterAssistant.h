@@ -33,7 +33,7 @@ class ClusterAssistant : public ClusterManagerBase {
 
     protected:
         virtual bool sendOnboardRequest();
-        virtual bool sendPublicKey(Hsm* hsm, Encryptor* encryptor);
+        virtual bool sendPublicKeyAndAlias(Hsm* hsm, Encryptor* encryptor, const char* deviceAlias);
         virtual ClusterConfigType ingestClusterData (const char* dataLine, int bytesRead, TrustStore* trustStore, Encryptor* encryptor);
 };
 

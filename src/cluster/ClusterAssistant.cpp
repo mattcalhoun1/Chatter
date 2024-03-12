@@ -10,7 +10,7 @@ bool ClusterAssistant::attemptOnboard () {
     bool success = false;
 
     sendOnboardRequest();
-    sendPublicKey(hsm, encryptor);
+    sendPublicKeyAndAlias(hsm, encryptor, chatter->getDeviceAlias());
     Serial.println("end pub key");
 
     bool receivedId = false;
@@ -331,7 +331,7 @@ bool ClusterAssistant::sendOnboardRequest () {
     return true;
 }
 
-bool ClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
+bool ClusterAssistant::sendPublicKeyAndAlias (Hsm* hsm, Encryptor* encryptor, const char* deviceAlias) {
     //uint8_t pubkey[ENC_PUB_KEY_SIZE];
     hsm->loadPublicKey(pubKey);
     encryptor->hexify(pubKey, ENC_PUB_KEY_SIZE);
@@ -340,6 +340,7 @@ bool ClusterAssistant::sendPublicKey (Hsm* hsm, Encryptor* encryptor) {
     for (int hexCount = 0; hexCount < ENC_PUB_KEY_SIZE*2; hexCount++) {
         Serial.print(hexifiedPubKey[hexCount]);
     }
+    Serial.print(deviceAlias);
     Serial.println("");
     return true;
 }

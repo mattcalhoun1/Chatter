@@ -5,6 +5,8 @@
 #ifndef RTCLOCKBASE_H
 #define RTCLOCKBASE_H
 
+#define DEFAULT_ZERO_DATE "20240101010101"
+
 class RTClockBase {
     public:
         virtual bool isFunctioning () = 0;

@@ -17,7 +17,7 @@ bool ClusterAdmin::handleAdminRequest () {
 
         if (requestType == AdminRequestOnboard || requestType == AdminRequestSync) {
             // pub key is required
-            if (ingestPublicKey(chatter->getEncryptor()->getPublicKeyBuffer())) {
+            if (ingestPublicKeyAndAlias(chatter->getEncryptor()->getPublicKeyBuffer(), alias)) {
 
                 // future enhancement: this would be a good point to generate a message to challenge for a signature. 
 
@@ -39,7 +39,7 @@ bool ClusterAdmin::handleAdminRequest () {
                 else {
                     // we don't know this key, which is to be expected if it's on onboard
                     if (requestType == AdminRequestOnboard) {
-                        return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer());
+                        return onboardNewDevice(chatter->getClusterId(), deviceType, (const uint8_t*)chatter->getEncryptor()->getPublicKeyBuffer(), alias);
                     }
                 }
             }
@@ -160,7 +160,7 @@ bool ClusterAdmin::genesis () {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull, ClusterLicenseRoot);
+    chatter->getClusterStore()->addCluster (clusterId, "MyCluster", newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull, ClusterLicenseRoot);
 
     Serial.println("Making default cluster");
     chatter->getDeviceStore()->setDefaultClusterId(clusterId);
@@ -170,7 +170,7 @@ bool ClusterAdmin::genesis () {
     return true;
 }
 
-bool ClusterAdmin::genesisRandom () {
+bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
     Serial.println("Creating a new random cluster.");
     if (chatter == nullptr) {
         Serial.println("Chatter is null!");
@@ -232,13 +232,15 @@ bool ClusterAdmin::genesisRandom () {
     }
     Serial.println("");
 
-    chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
+    chatter->getTrustStore()->addTrustedDevice(newDeviceId, deviceAlias, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull, ClusterLicenseRoot);
+    chatter->getClusterStore()->addCluster (clusterId, "MyCluster", newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull, ClusterLicenseRoot);
+
+    // storing device alias
+    chatter->getDeviceStore()->setDeviceName(deviceAlias);
 
     Serial.println("Making default cluster");
-    chatter->getDeviceStore()->setDeviceName(newDeviceId);
     chatter->getDeviceStore()->setDefaultClusterId(clusterId);
 
     Serial.println("Genesis Complete! Ready to onboard devices.");
@@ -246,8 +248,8 @@ bool ClusterAdmin::genesisRandom () {
     return true;
 }
 
-bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, const char* alias) {
-    dumpDevice(deviceId, alias);
+bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, const char* deviceAlias) {
+    dumpDevice(deviceId, deviceAlias);
     dumpTruststore(hostClusterId);
     dumpSymmetricKey(hostClusterId);
     dumpWiFi(hostClusterId);
@@ -255,7 +257,7 @@ bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, 
     dumpFrequency(hostClusterId);
     dumpChannels(hostClusterId);
     dumpAuthType(hostClusterId);
-    dumpLicense(deviceId);
+    dumpLicense(deviceId, deviceAlias);
 }
 
 bool ClusterAdmin::dumpTruststore (const char* hostClusterId) {
@@ -360,18 +362,22 @@ bool ClusterAdmin::dumpTime () {
     Serial.println(chatter->getRtc()->getSortableTime());
 }
 
-bool ClusterAdmin::dumpDevice (const char* deviceId, const char* alias) {
+bool ClusterAdmin::dumpDevice (const char* deviceId, const char* deviceAlias) {
     Serial.print(CLUSTER_CFG_DEVICE);
     Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(deviceId);
-    Serial.println(alias);
+    Serial.println(deviceAlias);
 }
 
-bool ClusterAdmin::generateEncodedLicense (const char* deviceId) {
+bool ClusterAdmin::generateEncodedLicense (const char* deviceId, const char* deviceAlias) {
     // get the pub key
     if(chatter->getTrustStore()->loadPublicKey(deviceId, pubKey)) {
+        memset(hashBaseBuffer, 0, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE);
+        memcpy(hashBaseBuffer, pubKey, ENC_PUB_KEY_SIZE);
+        memcpy(hashBaseBuffer, deviceAlias, strlen(deviceAlias));
+        //hashBaseBuffer[ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE];
         // sha256 the pub key
-        int hashLength = chatter->getEncryptor()->generateHash((const char*)pubKey, ENC_PUB_KEY_SIZE, hashBuffer);
+        int hashLength = chatter->getEncryptor()->generateHash((const char*)pubKey, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, hashBaseBuffer);
         
         // sign it
         chatter->getEncryptor()->setMessageBuffer(hashBuffer);
@@ -386,9 +392,9 @@ bool ClusterAdmin::generateEncodedLicense (const char* deviceId) {
     return false;
 }
 
-bool ClusterAdmin::dumpLicense (const char* deviceId) {
+bool ClusterAdmin::dumpLicense (const char* deviceId, const char* deviceAlias) {
 
-    if (generateEncodedLicense(deviceId)) {
+    if (generateEncodedLicense(deviceId, deviceAlias)) {
         Serial.print(CLUSTER_CFG_LICENSE);
         Serial.print(CLUSTER_CFG_DELIMITER);
         Serial.print(chatter->getDeviceId()); // we are the signer
@@ -401,36 +407,29 @@ bool ClusterAdmin::dumpLicense (const char* deviceId) {
 }
 
 
-bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey) {
+bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey, const char* deviceAlias) {
     Serial.println("We will onboard this device");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
     memcpy(newAddress, chatter->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
     newAddress[CHATTER_DEVICE_ID_SIZE] = '\0';
-    char alias[CHATTER_ALIAS_NAME_SIZE + 1];
-    memset(alias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
+    //char alias[CHATTER_ALIAS_NAME_SIZE + 1];
+    //memset(alias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
 
     switch (deviceType) {
         case ChatterDeviceBridgeLora:
             memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_LORA_ADDRESS, 3);
-            memcpy(alias, BASE_LORA_ALIAS, strlen(BASE_LORA_ALIAS));
             break;
         case ChatterDeviceBridgeWifi:
             memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_WIFI_ADDRESS, 3);
-            memcpy(alias, BASE_WIFI_ALIAS, strlen(BASE_WIFI_ALIAS));
             break;
         case ChatterDeviceBridgeCloud:
             memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_CLOUD_ADDRESS, 3);
-            memcpy(alias, BASE_CLOUD_ALIAS, strlen(BASE_CLOUD_ALIAS));
             break;
         case ChatterDeviceCommunicator:
             // find the next available communicator address
             //if (chatter->getTrustStore()->findNextAvailableDeviceId (newAddress, STARTING_DEVICE_ADDRESS, newAddress+(CHATTER_DEVICE_ID_SIZE - 3))) {
-            if (chatter->getTrustStore()->findNextAvailableDeviceId (hostClusterId, STARTING_DEVICE_ADDRESS, newAddress)) {
-                memcpy(alias, "Com_", 4);
-                memcpy(alias+4, newAddress+(CHATTER_DEVICE_ID_SIZE - 3), 3);
-            }
-            else {
+            if (!chatter->getTrustStore()->findNextAvailableDeviceId (hostClusterId, STARTING_DEVICE_ADDRESS, newAddress)) {
                 Serial.println("Cluster is full.");
                 return false;
             }
@@ -441,12 +440,11 @@ bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceTyp
     }
 
     Serial.println("This will be: " + String(newAddress));
-    Serial.println("Alias: " + String(alias));
+    Serial.println("Alias: " + String(deviceAlias));
 
 
-
-    if(chatter->getTrustStore()->addTrustedDevice(newAddress, alias, devicePublicKey, true)) {
-        syncDevice (hostClusterId, newAddress, alias);
+    if(chatter->getTrustStore()->addTrustedDevice(newAddress, deviceAlias, devicePublicKey, true)) {
+        syncDevice (hostClusterId, newAddress, deviceAlias);
     }
 
 

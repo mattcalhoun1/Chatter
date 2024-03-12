@@ -133,11 +133,16 @@ void CachingFramDatastore::loadCacheIfNecessary () {
                 }
             }
         }
+
         cacheLoaded = true;
+
+        // temp, debug
+        logCache();
     }
 }
 
 void CachingFramDatastore::logCache () {
+    Serial.println("==== FRAM Cache ==== ");
   for (uint8_t z = 0; z < FRAM_NUM_ZONES; z++) {
     uint8_t usedSlots = getNumUsedSlots(zoneId[z]);
     
@@ -150,6 +155,8 @@ void CachingFramDatastore::logCache () {
     }
     
   }
+    Serial.println("==== End FRAM Cache ==== ");
+
 }
 
 bool CachingFramDatastore::writeRecord (FramRecord* record, uint8_t slot) {

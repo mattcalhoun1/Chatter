@@ -61,6 +61,8 @@ class Chatter : ChatStatusCallback {
     bool init (const char* devicePassword = nullptr);
     ChatterDeviceType getDeviceType() { return deviceType; }
 
+    bool isDeviceInitialized () { return deviceInitialized; } // indicates if the device fram has been initialized (device has alias/etc)
+
     void addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled);
     void addAirliftUdpChannel (int ssPin, int ackPin, int resetPin, int gpi0, bool logEnabled);
     void addOnboardUdpChannel (bool logEnabled);
@@ -77,6 +79,7 @@ class Chatter : ChatStatusCallback {
     ChatterChannel* getChannel (int channelNum);
     const char* getDeviceId () {return deviceId; }
     const char* getClusterId () {return clusterId; }
+    const char* getDeviceAlias () {return deviceAlias;}
 
     bool hasMessage ();
     bool retrieveMessage ();
@@ -137,6 +140,7 @@ class Chatter : ChatStatusCallback {
     ChatterDeviceType deviceType;
     ChatterMode mode;
     bool running = false;
+    bool deviceInitialized = false;
 
     void ingestPacketMetadata (ChatterChannel* channel);
     void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId,  bool forceUnencrypted);
@@ -222,7 +226,9 @@ class Chatter : ChatStatusCallback {
     uint8_t pubKeyBuffer[ENC_SIGNATURE_SIZE];
     char licenseSigner[CHATTER_DEVICE_ID_SIZE];
     uint8_t internalMessageBuffer[CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE];
-    char aliasBuffer[CHATTER_ALIAS_NAME_SIZE];
+    char clusterAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
+    char deviceAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
+    char deviceAlias[CHATTER_ALIAS_NAME_SIZE+1];
 };
 
 #endif

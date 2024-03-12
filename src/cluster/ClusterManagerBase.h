@@ -31,7 +31,7 @@ class ClusterManagerBase {
     public:
         ClusterManagerBase(Chatter* _chatter) { chatter = _chatter; }
     protected:
-        virtual bool ingestPublicKey (byte* buffer);
+        virtual bool ingestPublicKeyAndAlias (byte* pubKeyBuffer, char* aliasBuffer);
         virtual bool ingestSymmetricKey (byte* buffer);
         virtual bool getUserInput (const char* prompt, char* inputBuffer, int minLength, int maxLength, bool symbolsAllowed, bool lowerCaseAllowed);
 
@@ -45,6 +45,8 @@ class ClusterManagerBase {
         char hexEncodedPubKey[ENC_PUB_KEY_SIZE * 2 + 1];
         uint8_t pubKey[ENC_PUB_KEY_SIZE];
         uint8_t hashBuffer[ENC_HASH_SIZE];
+        uint8_t hashBaseBuffer[ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE];
+
         char hexEncodedLicense[ENC_SIGNATURE_SIZE * 2 + 1];
         uint8_t license[ENC_SIG_BUFFER_SIZE];
 

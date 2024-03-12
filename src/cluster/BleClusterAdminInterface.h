@@ -16,7 +16,7 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool handleClientInput (const char* input, int inputLength, BLEDevice* device);
         bool isConnected ();
     protected:
-        bool ingestPublicKey (byte* buffer, BLEDevice* device);
+        bool ingestPublicKeyAndAlias (byte* pubKeyBuffer, char* aliasBuffer, BLEDevice* device);
         BleBuffer* bleBuffer;
 
         bool running = false;    
@@ -46,8 +46,8 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool dumpFrequency (const char* hostClusterId);
         bool dumpChannels (const char* hostClusterId);
         bool dumpAuthType (const char* hostClusterId);
-        bool dumpDevice (const char* deviceId, const char* alias);
-        bool dumpLicense (const char* deviceId);
+        bool dumpDevice (const char* deviceId, const char* deviceAlias);
+        bool dumpLicense (const char* deviceId, const char* deviceAlias);
 };
 
 //#endif
