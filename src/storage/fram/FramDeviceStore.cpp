@@ -22,7 +22,7 @@ bool FramDeviceStore::loadDeviceName (char* buffer) {
 }
 
 bool FramDeviceStore::getDefaultClusterId (char* buffer) {
-    return success = loadBuffer(FRAM_DEV_KEY_DEFAULT_CLUSTER, buffer, CHATTER_LOCAL_NET_ID_SIZE + CHATTER_GLOBAL_NET_ID_SIZE);
+    return loadBuffer(FRAM_DEV_KEY_DEFAULT_CLUSTER, buffer, CHATTER_LOCAL_NET_ID_SIZE + CHATTER_GLOBAL_NET_ID_SIZE);
 }
 
 bool FramDeviceStore::loadSigningKey (uint8_t* buffer) {
