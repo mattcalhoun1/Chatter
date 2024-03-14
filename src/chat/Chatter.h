@@ -80,6 +80,7 @@ class Chatter : ChatStatusCallback {
     const char* getDeviceId () {return deviceId; }
     const char* getClusterId () {return clusterId; }
     const char* getDeviceAlias () {return deviceAlias;}
+    const char* getClusterAlias () {return clusterAlias;}
 
     bool hasMessage ();
     bool retrieveMessage ();

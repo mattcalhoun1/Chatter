@@ -21,6 +21,7 @@ class ClusterAdmin : public ClusterManagerBase {
         ClusterAdmin (Chatter* _chatter) : ClusterManagerBase (_chatter) {}
         bool handleAdminRequest ();
         bool genesis ();
+        bool genesis (const char* deviceAlias, const char* clusterAlias, float loraFrequency);
         bool genesisRandom (const char* deviceAlias);
 
     protected:

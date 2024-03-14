@@ -15,6 +15,8 @@
 #define STARTING_DEVICE_ADDRESS 10 // first com device will get this address
 
 #define LORA_DEFAULT_FREQUENCY 915.0
+#define LORA_MIN_FREQUENCY 824.0
+#define LORA_MAX_FREQUENCY 960.0
 
 #define CHATTER_ALIAS_NAME_SIZE 12
 #define CHATTER_MIN_ALIAS_LENGTH 3

@@ -170,8 +170,8 @@ bool ClusterAdmin::genesis () {
     return true;
 }
 
-bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
-    Serial.println("Creating a new random cluster.");
+bool ClusterAdmin::genesis (const char* deviceAlias, const char* newClusterAlias, float loraFrequency) {
+    Serial.println("Creating a new cluster.");
     if (chatter == nullptr) {
         Serial.println("Chatter is null!");
     }
@@ -235,7 +235,7 @@ bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
     chatter->getTrustStore()->addTrustedDevice(newDeviceId, deviceAlias, pubKey, true);
     
     Serial.println("Adding cluster to storage");
-    chatter->getClusterStore()->addCluster (clusterId, "MyCluster", newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull, ClusterLicenseRoot);
+    chatter->getClusterStore()->addCluster (clusterId, newClusterAlias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelNone, ClusterAuthFull, ClusterLicenseRoot);
 
     // storing device alias
     chatter->getDeviceStore()->setDeviceName(deviceAlias);
@@ -246,6 +246,10 @@ bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
     Serial.println("Genesis Complete! Ready to onboard devices.");
 
     return true;
+}
+
+bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
+    return genesis(deviceAlias, "MyCluster", LORA_DEFAULT_FREQUENCY);
 }
 
 bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, const char* deviceAlias) {

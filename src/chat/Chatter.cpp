@@ -1094,6 +1094,7 @@ bool Chatter::loadClusterConfig (const char* newClusterId) {
         if (clusterStore->loadDeviceId(newClusterId, deviceId)) {
             memcpy(clusterId, newClusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE);
             clusterId[CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE] = 0;
+            memset(clusterAlias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
             deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
             clusterStore->loadAlias(clusterId, clusterAlias);
             clusterStore->loadWifiCred(clusterId, wifiCred);
