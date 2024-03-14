@@ -95,14 +95,22 @@ bool BleClusterAssistant::attemptOnboard () {
                     logConsole("Waiting for admin device");
                 }
 
-                logConsole("Full config received. Adding cluster to storage.");
+                if(receivedId && receivedKey && receivedIv && receivedTrust && 
+                        receivedWifiSsid && receivedAuthType && receivedWifiCred && 
+                        receivedFrequency && receivedTime && receivedPrimaryChannel && 
+                        receivedSecondaryChannel && receivedLicense) {
+                    logConsole("Full config received. Adding cluster to storage.");
 
-                if(clusterStore->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot)) {
-                    logConsole("New cluster added. Setting as default.");
-                    return chatter->getDeviceStore()->setDefaultClusterId(clusterId);
+                    if(clusterStore->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot)) {
+                        logConsole("New cluster added. Setting as default.");
+                        return chatter->getDeviceStore()->setDefaultClusterId(clusterId);
+                    }
+                    else {
+                        logConsole("cluster not saved!");
+                    }
                 }
                 else {
-                    logConsole("cluster not saved!");
+                    logConsole("Only partial config received.");
                 }
             }
             else {

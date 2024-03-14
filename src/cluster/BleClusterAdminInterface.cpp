@@ -177,7 +177,7 @@ bool BleClusterAdminInterface::ingestPublicKeyAndAlias (byte* pubKeyBuffer, char
             if (memcmp(rxBuffer, "PUB:", 4) == 0) {
                 memcpy(hexEncodedPubKey, rxBuffer + 4, rxBufferLength - 4);
 
-                for (uint8_t i = 4; i < rxBufferLength; i++) {
+                for (uint8_t i = 4; i < 4 + (ENC_PUB_KEY_SIZE * 2); i++) {
                     char currChar = rxBuffer[i];
                     if ((currChar >= '0' && currChar <= '9') || (currChar >= 'A' && currChar <= 'Z')) {
                         // this looks good;
