@@ -126,25 +126,21 @@ bool LoRaTrans::fireAndForget(String message, int address) {
 }
 
 bool LoRaTrans::fireAndForget(uint8_t* message, int length, uint8_t address) {
+    logConsole("LoRa fire and forget");
 
-  logConsole("LoRa Firing ", false);
-  logConsole(String(length), false);
-  logConsole(" to ", false);
-  logConsole(String(address));
+    int sends = 0;
+    bool sent = false;
 
-  int sends = 0;
-  bool sent = false;
+    while (sends++ < LORA_BROADCAST_COUNT) {
+        sent = rfm9x_manager->sendto(message, length, address);
+        delay(LORA_BROADCAST_DELAY);
+    }
 
-  while (sends++ < LORA_BROADCAST_COUNT) {
-    sent = rfm9x_manager->sendto(message, length, address);
-    delay(LORA_BROADCAST_DELAY);
-  }
+    if (LORA_SLEEP_AFTER_TX) {
+        rfm9x->sleep();
+    }
 
-  if (LORA_SLEEP_AFTER_TX) {
-    rfm9x->sleep();
-  }
-
-  return sent;
+    return sent;
 }
 
 bool LoRaTrans::send(uint8_t* message, int length, uint8_t address) {

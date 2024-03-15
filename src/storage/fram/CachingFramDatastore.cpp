@@ -165,12 +165,19 @@ bool CachingFramDatastore::writeRecord (FramRecord* record, uint8_t slot) {
     // update the key cache at that slot
     updateMap(record, slot);
 
+    // invalidate our cached slot count/next slot, because we dont know
+    // in this context whether an update or insert was done.
+    slotsUsedCache[record->getZone()] = FRAM_NULL;
+    latestSlotIdCache[record->getZone()] = FRAM_NULL;
+    
+    // removed 3/15, these were getting incremented during in-place updates of packets
     // bump the slot used/id cache as necessary
-    if (slotsUsedCache[record->getZone()] < zoneSlots[record->getZone()]) {
-      slotsUsedCache[record->getZone()] = slotsUsedCache[record->getZone()] + 1;
-    }
-    latestSlotIdCache[record->getZone()] = slot;
+    //if (slotsUsedCache[record->getZone()] < zoneSlots[record->getZone()]) {
+    //  slotsUsedCache[record->getZone()] = slotsUsedCache[record->getZone()] + 1;
+    //}
+    //latestSlotIdCache[record->getZone()] = slot;
   }
+
   return success;
 }
 

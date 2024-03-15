@@ -99,6 +99,8 @@ class Chatter : ChatStatusCallback {
     // broadcast text and raw messagse
     bool broadcast (String message);
     bool broadcast(uint8_t *message, uint8_t length);
+    bool broadcast(uint8_t *message, int length, ChatterMessageFlags* flags);
+    bool broadcastUnencrypted(uint8_t *message, int length, ChatterMessageFlags* flags);
 
     bool send(uint8_t *message, int length, const char* recipientDeviceId);
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags);
@@ -109,7 +111,7 @@ class Chatter : ChatStatusCallback {
 
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterChannel* channel);
     bool send(uint8_t *message, int length, const char* recipientDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel);
-    bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted = false);
+    bool sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted = false, bool isBroadcast = false);
 
     bool isRunning () {return running;}
 
@@ -147,6 +149,8 @@ class Chatter : ChatStatusCallback {
     void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId,  bool forceUnencrypted);
     int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted);
 
+    bool prepareBuffersForSendDeviceInfo ();
+
     void generateMessageId (char* messageIdBuffer);
 
     int generateFooter (const char* recipientDeviceId, char* messageId, uint8_t* message, int messageLength);
@@ -160,6 +164,7 @@ class Chatter : ChatStatusCallback {
     bool isSenderKnown (const char* senderId);
 
     bool sendDeviceInfo (const char* targetDeviceId, bool requestBack);
+    bool broadcastDeviceInfo (bool requestBack);
     bool receiveDeviceInfo (bool isExchange);
 
     void populateReceiveBufferFlags ();
@@ -230,6 +235,7 @@ class Chatter : ChatStatusCallback {
     char clusterAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
     char deviceAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
     char deviceAlias[CHATTER_ALIAS_NAME_SIZE+1];
+    char clusterBroadcastId[CHATTER_DEVICE_ID_SIZE + 1];
 };
 
 #endif

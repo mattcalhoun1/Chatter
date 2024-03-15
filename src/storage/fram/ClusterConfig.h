@@ -64,7 +64,7 @@ class ClusterConfig : public FramRecord {
     ClusterLicenseType licenseType;
 
     char deviceId[CHATTER_DEVICE_ID_SIZE];
-    char frequency[CHATTER_LORA_FREQUENCY_DIGITS];
+    char frequency[CHATTER_LORA_FREQUENCY_DIGITS + 1];
     uint8_t key[ENC_SYMMETRIC_KEY_SIZE];
     uint8_t iv[ENC_IV_SIZE];
     char alias[CHATTER_ALIAS_NAME_SIZE];

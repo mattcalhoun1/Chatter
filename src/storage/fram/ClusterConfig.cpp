@@ -52,6 +52,7 @@ void ClusterConfig::deserialize (const uint8_t* recordKey, const uint8_t* dataBu
     memcpy(deviceId, bufferPos, CHATTER_DEVICE_ID_SIZE);
     bufferPos += CHATTER_DEVICE_ID_SIZE;
 
+    memset(frequency, 0, CHATTER_LORA_FREQUENCY_DIGITS+1);
     memcpy(frequency, bufferPos, CHATTER_LORA_FREQUENCY_DIGITS);
     bufferPos += CHATTER_LORA_FREQUENCY_DIGITS;
 

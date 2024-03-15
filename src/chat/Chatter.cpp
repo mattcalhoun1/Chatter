@@ -118,17 +118,8 @@ bool Chatter::init (const char* devicePassword) {
 
 bool Chatter::selfAnnounce (bool force) {
     if (force || millis() - selfAnnounceFrequency > lastAnnounce) {
-        lastAnnounce = millis();
-        uint8_t loraAddress = this->getChannel(0)->getSelfAddress();
-        uint8_t udpAddress = this->getChannel(1)->getSelfAddress();
-        String announceMsg = String(this->getDeviceId()) + "_" + String(loraAddress) + "_" + String(udpAddress);
-        logConsole("Self Announcing: " + announceMsg);
-
-        for (int channelCount = 0; channelCount < numChannels; channelCount++) {
-            if (channels[channelCount]->isEnabled() && channels[channelCount]->isConnected()) {
-                channels[channelCount]->broadcast(announceMsg);
-            }
-        }
+        logConsole("Self Announcing");
+        return broadcastDeviceInfo(false);
     }
 }
 
@@ -341,7 +332,13 @@ bool Chatter::hasMessage () {
 void Chatter::populateReceiveBufferFlags () {
     // populates the flags in the receive buffer, using the content sitting in the receive buffer (should contain full header)
     // skip over HHH, nbf/na,  and device id
+    //int flagPosition = 3 + 12*2 + CHATTER_DEVICE_ID_SIZE;//commented out 3/4 + receiveBuffer.headerLength;
+    
+    // new logic, 3/15 - maybe bridge has to skip header lenght
     int flagPosition = 3 + 12*2 + CHATTER_DEVICE_ID_SIZE;//commented out 3/4 + receiveBuffer.headerLength;
+    if (mode == BridgeMode) {
+        flagPosition += receiveBuffer.headerLength;
+    }
 
     receiveBuffer.flags.Flag0 = receiveBuffer.content[flagPosition++];
     receiveBuffer.flags.Flag1 = receiveBuffer.content[flagPosition++];
@@ -413,6 +410,8 @@ bool Chatter::retrieveMessage () {
             return false;
         }
         else {
+            Serial.print("Message for: ");Serial.println((const char*)receiveBuffer.recipient);
+
             // in bridge mode, we look at all packets
             if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0) {
                 bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
@@ -603,21 +602,15 @@ bool Chatter::broadcast (String message) {
 }
 
 bool Chatter::broadcast(uint8_t *message, uint8_t length) {
-    ChatterChannel* channel = getDefaultChannel();
+    return sendViaIntermediary(message, length, clusterBroadcastId, clusterBroadcastId, nullptr, getDefaultChannel(), false, true);
+}
 
-    // broadcast to own network
-    char broadcastAddress[CHATTER_DEVICE_ID_SIZE + 1];
-    memcpy(broadcastAddress, this->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
-    memcpy(broadcastAddress + (CHATTER_DEVICE_ID_SIZE - 3), CHATTER_BROADCAST_ID, 3);
-    broadcastAddress[CHATTER_DEVICE_ID_SIZE] = '\0';
+bool Chatter::broadcast(uint8_t *message, int length, ChatterMessageFlags* flags) {
+    return sendViaIntermediary(message, length, clusterBroadcastId, clusterBroadcastId, flags, getDefaultChannel(), false, true);
+}
 
-    // prime with a header
-    primeSendBuffer (CHATTER_BROADCAST_ID, channel, false, false, false, "ABC", "001", false);
-
-    // do any encoding/encryption necessary on the content and get the final length
-    int finalFullLength = populateSendBufferContent (message, length, channel, false, false);
-
-    return channel->broadcast(sendBuffer, finalFullLength);
+bool Chatter::broadcastUnencrypted(uint8_t *message, int length, ChatterMessageFlags* flags) {
+    return sendViaIntermediary(message, length, clusterBroadcastId, clusterBroadcastId, flags, getDefaultChannel(), true, true);
 }
 
 
@@ -815,7 +808,7 @@ bool Chatter::send(uint8_t *message, int length, const char* recipientDeviceId, 
     return sendViaIntermediary(message, length, recipientDeviceId, recipientDeviceId, flags, channel);
 }
 
-bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted) {
+bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* recipientDeviceId, const char* intermediaryDeviceId, ChatterMessageFlags* flags, ChatterChannel* channel, bool forceUnencrypted, bool isBroadcast) {
     if (forceUnencrypted) {
         logConsole("Warning: Unencrypted send!");
     }
@@ -831,6 +824,8 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
     char messageId[CHATTER_MESSAGE_ID_SIZE + 1];
     generateMessageId(messageId);
 
+    Serial.print("MessageID: "); Serial.println(messageId);
+
     // this does not take into account that encryption can change size of message
     int contentChunkSize = CHATTER_PACKET_SIZE - CHATTER_PACKET_HEADER_LENGTH;
     int chunks = ceil(length / ((float)CHATTER_PACKET_SIZE - (float)CHATTER_PACKET_HEADER_LENGTH));
@@ -838,7 +833,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
 
     chunks += 1; // header
 
-    //logConsole("Message Length: " + String(length) + ", Content chunk size: " + String(contentChunkSize) + ", Chunks: " + String(chunks) + ", Last chunk: " + String(lastChunkSize));
+    logConsole("Message Length: " + String(length) + ", Content chunk size: " + String(contentChunkSize) + ", Chunks: " + String(chunks) + ", Last chunk: " + String(lastChunkSize));
     
     // send the header first, unencrypted
     char chunkId[CHATTER_CHUNK_ID_SIZE];
@@ -847,9 +842,18 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
     primeSendBuffer (recipientDeviceId, channel, false, true, false, messageId, chunkId, forceUnencrypted);
     int thisHeaderLength = generateHeader(recipientDeviceId, messageId, flags);
     int fullMetadataLength = populateSendBufferContent (headerBuffer, thisHeaderLength, channel, true, forceUnencrypted);
-    if (!channel->send(sendBuffer, fullMetadataLength, address)) {
-        logConsole("Header send failed");
-        return false;
+
+    if (isBroadcast) {
+        if (!channel->broadcast(sendBuffer, fullMetadataLength)) {
+            logConsole("Header broadcast failed");
+            return false;
+        }
+    }
+    else {
+        if (!channel->send(sendBuffer, fullMetadataLength, address)) {
+            logConsole("Header send failed");
+            return false;
+        }
     }
 
     // now send message chunks
@@ -869,9 +873,17 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         int finalFullLength = populateSendBufferContent (messagePosition, thisChunkLength, channel, false, forceUnencrypted);
 
         // send it
-        if (!channel->send(sendBuffer, finalFullLength, address)) {
-            logConsole("Failed to send chunk " + String(chunkId) + " length " + String(finalFullLength));
-            return false;
+        if (isBroadcast) {
+            if (!channel->broadcast(sendBuffer, finalFullLength)) {
+                logConsole("Failed to broadcast chunk " + String(chunkId) + " length " + String(finalFullLength));
+                return false;
+            }
+        }
+        else {
+            if (!channel->send(sendBuffer, finalFullLength, address)) {
+                logConsole("Failed to send chunk " + String(chunkId) + " length " + String(finalFullLength));
+                return false;
+            }
         }
     }
 
@@ -884,13 +896,21 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         primeSendBuffer (recipientDeviceId, channel, true, false, true, messageId, "000", forceUnencrypted);
 
         int finalFullLength = populateSendBufferContent (footerBuffer, thisFooterLength, channel, true, forceUnencrypted); // don't encrypt footer, so sig can be validated
-        if (!channel->send(sendBuffer, finalFullLength, address)) {
-            return false;
+        if (isBroadcast) {
+            if (!channel->broadcast(sendBuffer, finalFullLength)) {
+                return false;
+            }
+            logConsole(String("Successfully broadcast signed message: ") + String(messageId));
         }
-        logConsole(String("Successfully sent signed message: ") + String(messageId));
+        else {
+            if (!channel->send(sendBuffer, finalFullLength, address)) {
+                return false;
+            }
+            logConsole(String("Successfully sent signed message: ") + String(messageId));
+        }
     }
     else {
-        logConsole("Message sent with no signature.");
+        logConsole("Message sent/broadcast with no signature.");
     }
 
     return true;
@@ -975,10 +995,39 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
     return false;
 }
 
+bool Chatter::broadcastDeviceInfo (bool requestBack) {
+    // Broadcast own key/license, with flag set to receive theirs
+    logConsole("broadcasting device info");
+
+    ChatterMessageFlags flg;
+    flg.Flag4 = requestBack ? FLAG_CTRL_TYPE_EXCHANGE_ID : FLAG_CTRL_TYPE_ID;
+
+    if (prepareBuffersForSendDeviceInfo()) {
+        // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
+        return broadcastUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), &flg);
+    }
+
+    logConsole("Failed to prepare for send device info");
+    return false;
+}
+
 bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
     // Send our own key/license, with flag set to receive theirs
     logConsole("Sending device info");
 
+    ChatterMessageFlags flg;
+    flg.Flag4 = requestBack ? FLAG_CTRL_TYPE_EXCHANGE_ID : FLAG_CTRL_TYPE_ID;
+
+    if (prepareBuffersForSendDeviceInfo()) {
+        // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
+        return sendUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
+    }
+
+    logConsole("Failed to prepare for send device info");
+    return false;
+}
+
+bool Chatter::prepareBuffersForSendDeviceInfo () {
     // load pub key into buffer
     hsm->loadPublicKey(pubKeyBuffer);
 
@@ -1009,9 +1058,6 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
         logConsole("Sending root-signed license");
     }
 
-    ChatterMessageFlags flg;
-    flg.Flag4 = requestBack ? FLAG_CTRL_TYPE_EXCHANGE_ID : FLAG_CTRL_TYPE_ID;
-
     memset(internalMessageBuffer, 0, CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE);
     memcpy(internalMessageBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
     memcpy(internalMessageBuffer, deviceAlias, strlen(deviceAlias));
@@ -1023,8 +1069,7 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
     memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, encryptor->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
     memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2), clusterAlias, strlen(clusterAlias));
 
-    // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
-    return sendUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
+    return true;
 }
 
 // chatter packet level
@@ -1096,6 +1141,9 @@ bool Chatter::loadClusterConfig (const char* newClusterId) {
             clusterId[CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE] = 0;
             memset(clusterAlias, 0, CHATTER_ALIAS_NAME_SIZE + 1);
             deviceId[CHATTER_DEVICE_ID_SIZE] = 0;
+
+            memset(clusterBroadcastId, 0, CHATTER_DEVICE_ID_SIZE+1);
+            sprintf(clusterBroadcastId, "%s%s", clusterId, CHATTER_BROADCAST_ID);
             clusterStore->loadAlias(clusterId, clusterAlias);
             clusterStore->loadWifiCred(clusterId, wifiCred);
             clusterStore->loadWifiSsid(clusterId, wifiSsid);
@@ -1125,6 +1173,7 @@ bool Chatter::deviceStoreInitialized () {
             logConsole("Device Alias: ");
             logConsole(deviceAlias);
 
+            memset(defaultClusterId, 0, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1);
             return deviceStore->getDefaultClusterId(defaultClusterId);
         }
         else {

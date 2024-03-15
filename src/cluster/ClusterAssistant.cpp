@@ -176,10 +176,10 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
 
             // the rest of the buffer is alias
             memset(alias, 0, CHATTER_ALIAS_NAME_SIZE+1);
-            memcpy(alias, clusterData + CHATTER_DEVICE_ID_SIZE + ENC_PUB_KEY_SIZE, bytesRead - (dataPosition + CHATTER_DEVICE_ID_SIZE + (ENC_PUB_KEY_SIZE*2)));
+            memcpy(alias, clusterData + CHATTER_DEVICE_ID_SIZE + (ENC_PUB_KEY_SIZE*2), bytesRead - (dataPosition + CHATTER_DEVICE_ID_SIZE + (ENC_PUB_KEY_SIZE*2)));
 
             // this needs to go into the truststore now
-            trustStore->addTrustedDevice(trustedDeviceId, alias, pubKey);
+            trustStore->addTrustedDevice(trustedDeviceId, alias, pubKey, true);
 
             return ClusterTrustStore;
         }

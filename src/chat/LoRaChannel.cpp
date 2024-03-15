@@ -73,15 +73,12 @@ const uint8_t* LoRaChannel::getRawMessage () {
 
 
 bool LoRaChannel::broadcast (String message) {
-    chatStatusCallback->updateChatStatus(channelNum, ChatSending);
-    bool result = lora->broadcast(message);
-    chatStatusCallback->updateChatStatus(channelNum, result ? ChatSent : ChatFailed);
-    return result;
+    return broadcast((uint8_t*)message.c_str(), message.length());
 }
 
 bool LoRaChannel::broadcast(uint8_t *message, uint8_t length) {
     chatStatusCallback->updateChatStatus(channelNum, ChatSending);
-    bool result = lora->broadcast(message, length);
+    bool result = lora->fireAndForget(message, length, LORA_ADDR_BROADCAST);
     chatStatusCallback->updateChatStatus(channelNum, result ? ChatSent : ChatFailed);
     return result;
 }

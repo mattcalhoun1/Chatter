@@ -40,7 +40,7 @@ bool FramPacketStore::savePacket (ChatterPacket* packet) {
         logConsole("Failed to save packet!");
     }
 
-    //datastore->logCache();
+    datastore->logCache();
 
     return success;
 
@@ -48,6 +48,7 @@ bool FramPacketStore::savePacket (ChatterPacket* packet) {
 
 bool FramPacketStore::saveMessageTimetamp(const char* senderId, const char* messageId, const char* sortableTime, PacketStatus status) {
     uint8_t numPackets = getNumPackets(senderId, messageId, status);
+
     for (int packetNum = 0; packetNum < numPackets; packetNum++) {
         populateKeyBuffer(senderId, messageId, packetNum, status);
         uint8_t slotNum = datastore->getRecordNum(ZonePacket, keyBuffer);
@@ -57,12 +58,12 @@ bool FramPacketStore::saveMessageTimetamp(const char* senderId, const char* mess
                 datastore->writeRecord(&packetBuffer, slotNum);
             }
             else {
-                logConsole("Fram packet not read");
+                logConsole("Fram packet not read while updating ts");
             }
         }
     }
     if (numPackets == 0) {
-        logConsole("Air out message not found in fram");
+        logConsole("Air out message not found in fram while updating ts");
     }
     return numPackets > 0;    
 }
@@ -105,6 +106,7 @@ int FramPacketStore::readPacket (const char* senderId, const char* messageId, in
 
 int FramPacketStore::readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, PacketStatus status) {
     populateKeyBuffer(senderId, messageId, packetNum, status);
+
     uint8_t slotNum = datastore->getRecordNum(ZonePacket, keyBuffer);
     if (slotNum != FRAM_NULL) {
         if (!datastore->readRecord(&packetBuffer, slotNum)) {
@@ -135,6 +137,7 @@ bool FramPacketStore::saveMessageStatus (const char* senderId, const char* messa
         // this isn't exactly perfect, if just the last save succeeds, the method returns success
         saved = datastore->writeRecord(&packetBuffer, slotNum);
     }
+
     return saved;
 }
 
@@ -187,6 +190,7 @@ bool FramPacketStore::readOldestPacketDetails (PacketStatus status, ChatterPacke
     for (uint8_t slotId = 0; slotId < datastore->getNumUsedSlots(ZonePacket); slotId++) {
         // look at the key and see if the status shows its sitting in Air out
         datastore->readKey(keyBuffer, ZonePacket, slotId);
+
         if (keyBuffer[FRAM_PACKET_KEYSIZE-1] == status) {
             // read this packet to get the timestamp
             datastore->readRecord(&packetBuffer, slotId);

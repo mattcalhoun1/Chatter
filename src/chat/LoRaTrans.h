@@ -22,8 +22,8 @@
 #define LORA_SLEEP_AFTER_TX true
 #define LORA_SLEEP_AFTER_RX true
 
-#define LORA_BROADCAST_COUNT 5 // broadcast same message 5 times
-#define LORA_BROADCAST_DELAY 150 // ms delay between broadcasts
+#define LORA_BROADCAST_COUNT 4 // broadcast same message 4 times
+#define LORA_BROADCAST_DELAY 500 // ms delay between broadcasts
 
 class LoRaTrans {
   public:

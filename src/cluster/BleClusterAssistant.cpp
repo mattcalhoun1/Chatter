@@ -132,7 +132,24 @@ bool BleClusterAssistant::attemptOnboard () {
 bool BleClusterAssistant::sendOnboardRequest() {
     bleBuffer->clearTxBuffer();
     uint8_t* txBuffer = bleBuffer->getTxBuffer();
-    sprintf((char*)txBuffer, "%s", "ONBD:C0");
+
+    switch(chatter->getDeviceType()) {
+        case ChatterDeviceCommunicator:
+            sprintf((char*)txBuffer, "ONBD:%s", DEVICE_TYPE_COMMUNICATOR);
+            break;
+        case ChatterDeviceBridgeLora:
+            sprintf((char*)txBuffer, "ONBD:%s", DEVICE_TYPE_BRIDGE_LORA);
+            break;
+        case ChatterDeviceBridgeWifi:
+            sprintf((char*)txBuffer, "ONBD:%s", DEVICE_TYPE_BRIDGE_WIFI);
+            break;
+        case ChatterDeviceBridgeCloud:
+            sprintf((char*)txBuffer, "ONBD:%s", DEVICE_TYPE_BRIDGE_CLOUD);
+            break;
+        default:
+            sprintf((char*)txBuffer, "ONBD:%s", DEVICE_TYPE_RAW);
+            break;
+    }
     bleBuffer->setTxBufferLength(7);
 
     logConsole("Sending onboard request");
