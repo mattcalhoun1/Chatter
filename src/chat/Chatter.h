@@ -86,6 +86,7 @@ class Chatter : ChatStatusCallback {
     bool retrieveMessage ();
     const char* getLastSender ();
     const char* getLastRecipient ();
+    bool wasLastMessageBroadcast ();
     ChatterChannel* getLastChannel ();
     ChatterMessageType getMessageType ();
     int getMessageSize ();

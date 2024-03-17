@@ -412,9 +412,10 @@ bool Chatter::retrieveMessage () {
         else {
             Serial.print("Message for: ");Serial.println((const char*)receiveBuffer.recipient);
 
-            // in bridge mode, we look at all packets
-            if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0) {
-                bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
+            // in bridge mode, we look at all packets.
+            // otherwise, just direct and broadcast
+            if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0 || strcmp((const char*) receiveBuffer.recipient, clusterBroadcastId) == 0) {
+                //bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
 
                 /*logConsole("To: " + String((char*)receiveBuffer.recipient));
                 logConsole("From: " + String((char*)receiveBuffer.sender));
@@ -622,6 +623,10 @@ const char* Chatter::getLastSender () {
 
 const char* Chatter::getLastRecipient () {
     return (const char*)receiveBuffer.recipient;
+}
+
+bool Chatter::wasLastMessageBroadcast () {
+    return memcmp(receiveBuffer.recipient, clusterBroadcastId, CHATTER_DEVICE_ID_SIZE) == 0;
 }
 
 ChatterMessageType Chatter::getMessageType () {

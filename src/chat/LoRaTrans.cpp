@@ -196,9 +196,22 @@ long LoRaTrans::retrieveMessage() {
         rfm9x->sleep();
       }
       return len;
-    } else {
-      logConsole("Failed to receive or acknowledge message, possibly size: " + String(len) + " from: " + String(from));
+    } else if (len > 0) {
+        logConsole("received broadcast message");
+        // this seems to happen if the message was a broadcast
+        this->lastSender = from;
+        messageBufferTime = millis();
+        lastMessageSize = len;
+
+        if (LORA_SLEEP_AFTER_RX) {
+            rfm9x->sleep();
+        }
+        return len;
     }
+    else {
+        logConsole("Failed to receive or acknowledge message");
+    }
+
   lastMessageSize = 0;
   if (LORA_SLEEP_AFTER_RX) {
     rfm9x->sleep();

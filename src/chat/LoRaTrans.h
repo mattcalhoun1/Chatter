@@ -15,9 +15,9 @@
 //#define LORA_RFM9X_MAX_MESSAGE_LEN 64
 #define LORA_MAX_MESSAGE_LEN 150 // really only expect about 128, but when encrypting, message chunks may be slightly larger
 
-#define LORA_ACK_TIMEOUT 1000
+#define LORA_ACK_TIMEOUT 500
 
-#define LORA_ADDR_BROADCAST 255
+#define LORA_ADDR_BROADCAST RH_BROADCAST_ADDRESS // i think this is 255
 #define LORA_POWER 23
 #define LORA_SLEEP_AFTER_TX true
 #define LORA_SLEEP_AFTER_RX true
