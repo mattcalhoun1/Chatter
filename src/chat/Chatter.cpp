@@ -454,10 +454,13 @@ bool Chatter::retrieveMessage () {
                     packetStore->savePacket(&receiveBuffer);
                     receiveBufferMessageType = receiveBuffer.encryptionFlag == PacketSigned ? MessageTypeSignature : MessageTypeText;
 
+
                     // if it was a signature, go ahead and copy the entire message into
                     // the receive buffer, so it will be there after sig is verified (or not)
-                    if (receiveBuffer.encryptionFlag == PacketSigned) {
-                        
+                    //if (receiveBuffer.encryptionFlag == PacketSigned) {
+
+                    // check if we have an entire message
+                    if (isCompleteSignedMessage ((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId)) {
                         // read the complete message into the buffer.
                         // The header will be there, which contains metadata to check expiry
                         receiveBuffer.contentLength = packetStore->readMessage((const char*)receiveBuffer.sender, (const char*)receiveBuffer.messageId, receiveBuffer.content, CHATTER_FULL_MESSAGE_BUFFER_SIZE);                    
@@ -559,10 +562,54 @@ bool Chatter::retrieveMessage () {
         }
     }
     else {
-        logConsole("Message not retrieved!");
+        logConsole("Message not retrieved from channel!");
     }
 
     return retrieved;
+}
+
+bool Chatter::isCompleteSignedMessage (const char* senderDeviceId, const char* messageId) {
+    uint8_t numPackets = packetStore->getNumPackets(senderDeviceId, messageId);
+
+    if (numPackets >= 3) {
+        // check for footer
+        if (packetStore->packetExists(senderDeviceId, messageId, 0)) {
+            for (uint8_t p = 1; p < numPackets; p++) {
+                if (!packetStore->packetExists(senderDeviceId, messageId, p)) {
+                    logConsole("Gap found");
+                    return false;
+                }
+            }
+
+            // no gaps found
+            // read header into send buffer, which should be unused at this point
+            int headerPacketLength = packetStore->readPacket (senderDeviceId, messageId, numPackets - 1, sendBuffer, CHATTER_FULL_BUFFER_LEN); 
+            int expectedSize = (mode == BridgeMode) ? (receiveBuffer.headerLength + CHATTER_HEADER_SIZE) : CHATTER_HEADER_SIZE;
+            uint8_t* expectedLocation = (mode == BridgeMode) ? sendBuffer + receiveBuffer.headerLength : sendBuffer;
+
+            // packet length is fixed, but depends on whether in bridge mode or basic mode
+            if (headerPacketLength == expectedSize) {
+                if (memcmp(expectedLocation, "HHH", 3) == 0) {
+                    return true;
+                }
+                else {
+                    logConsole("Header was right size but missing header text indicator (bridge mode)");
+                }
+            }
+            else {
+                logConsole("Header packet wrong size: " + String(headerPacketLength) + " vs expected " + String(expectedSize));
+            }
+        }
+        else {
+            logConsole("No footer found");
+        }
+
+    }
+    else {
+        logConsole("not enough packets");
+    }
+
+    return false;
 }
 
 ChatterChannel* Chatter::getLastChannel () {

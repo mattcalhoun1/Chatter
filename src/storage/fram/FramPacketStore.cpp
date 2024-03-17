@@ -40,7 +40,7 @@ bool FramPacketStore::savePacket (ChatterPacket* packet) {
         logConsole("Failed to save packet!");
     }
 
-    datastore->logCache();
+    //datastore->logCache();
 
     return success;
 
@@ -82,13 +82,23 @@ bool FramPacketStore::clearAllMessages () {
 }
 
 int FramPacketStore::getNumPackets (const char* senderId, const char* messageId, PacketStatus status) {
-    for (uint8_t p = 0; p < 255; p++) {
+    for (uint8_t p = 0; p < CHATTER_MAX_PACKETS; p++) {
         populateKeyBuffer(senderId, messageId, p, status);
         if (!datastore->recordExists(ZonePacket, keyBuffer)) {
             return p; // the current index = number of packets
         }
     }
     return 0;
+}
+
+bool FramPacketStore::packetExists (const char* senderId, const char* messageId, uint8_t packetNum) {
+    return packetExists(senderId, messageId, packetNum, PacketReceived);
+}
+
+bool FramPacketStore::packetExists (const char* senderId, const char* messageId, uint8_t packetNum, PacketStatus status) {
+    populateKeyBuffer(senderId, messageId, packetNum, status);
+    return datastore->recordExists(ZonePacket, keyBuffer);
+
 }
 
 int FramPacketStore::getNumPackets (const char* senderId, const char* messageId) {
@@ -145,11 +155,14 @@ bool FramPacketStore::savePacketStatus (const char* senderId, const char* messag
     bool saved = false;
     populateKeyBuffer(senderId, messageId, packetNum, oldStatus);
     uint8_t slotNum = datastore->getRecordNum(ZonePacket, keyBuffer);
-    if(datastore->readRecord(&packetBuffer, slotNum)) {
+    if(slotNum != FRAM_NULL && datastore->readRecord(&packetBuffer, slotNum)) {
         packetBuffer.setStatus(newStatus);
 
         // this isn't exactly perfect, if just the last save succeeds, the method returns success
         saved = datastore->writeRecord(&packetBuffer, slotNum);
+    }
+    else {
+        logConsole("Updating packet status, packet not found");
     }
     return saved;
 }
@@ -183,6 +196,7 @@ bool FramPacketStore::clearPacketFromBridgeOut (const char* senderId, const char
     return savePacketStatus (senderId, messageId, packetNum, PacketBridgeOut, PacketDeleted);
 }
 
+// from the oldest message, returns the highest numbered packet
 bool FramPacketStore::readOldestPacketDetails (PacketStatus status, ChatterPacketMetaData* packetDetailsBuffer) {
     memset(tsBuffer, 255, 12); // initialize to greatest possible timestamp
     bool found = false;
@@ -198,6 +212,7 @@ bool FramPacketStore::readOldestPacketDetails (PacketStatus status, ChatterPacke
                 // this packet is older, so it should be next
                 memcpy(packetDetailsBuffer->chunkId, packetBuffer.getChunkId(), CHATTER_CHUNK_ID_SIZE);
                 packetDetailsBuffer->chunkId[CHATTER_CHUNK_ID_SIZE] = 0;
+                packetDetailsBuffer->packetId = atoi((const char*)packetDetailsBuffer->chunkId);
 
                 memcpy(packetDetailsBuffer->messageId, packetBuffer.getMessageId(), CHATTER_MESSAGE_ID_SIZE);
                 packetDetailsBuffer->messageId[CHATTER_MESSAGE_ID_SIZE] = 0;
@@ -209,6 +224,21 @@ bool FramPacketStore::readOldestPacketDetails (PacketStatus status, ChatterPacke
                 packetDetailsBuffer->sender[CHATTER_DEVICE_ID_SIZE] = 0;
 
                 found = true;
+            }
+        }
+    }
+
+    if (found) {
+        // retain the selected sender/message 
+        // however, make sure packet num is the highest we have for the related message
+
+        // need to make sure 000 is the last we send out, so that we have access to the recipient ID (in bridge mode)
+        if (getNumPackets((const char*)packetDetailsBuffer->sender, (const char*)packetDetailsBuffer->messageId, status) > 1) {
+            for (uint8_t updatedPacketNum = 1; updatedPacketNum < CHATTER_MAX_PACKETS; updatedPacketNum++) {
+                if (packetExists((const char*)packetDetailsBuffer->sender, (const char*)packetDetailsBuffer->messageId, updatedPacketNum, status)) {
+                    sprintf((char*)packetDetailsBuffer->chunkId, "%03d", updatedPacketNum);
+                    packetDetailsBuffer->packetId = atoi((const char*)packetDetailsBuffer->chunkId);
+                }
             }
         }
     }

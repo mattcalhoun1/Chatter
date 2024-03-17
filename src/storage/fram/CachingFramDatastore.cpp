@@ -137,7 +137,7 @@ void CachingFramDatastore::loadCacheIfNecessary () {
         cacheLoaded = true;
 
         // temp, debug
-        logCache();
+        //logCache();
     }
 }
 

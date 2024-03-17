@@ -6,7 +6,7 @@ ZeroRtClock::ZeroRtClock () {
   rtc.begin(); // initialize RTC
 
     // if the date has not yet been set, temporarily set it to a somewhat normal date, so we can proceed with initialization
-    if (rtc.getYear() < 10) {
+    if (ds3231.getYear() < 10) {
         setNewDateTime (DEFAULT_ZERO_DATE);
     }
 

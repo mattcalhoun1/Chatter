@@ -149,6 +149,8 @@ class Chatter : ChatStatusCallback {
     void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId,  bool forceUnencrypted);
     int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted);
 
+    bool isCompleteSignedMessage (const char* senderDeviceId, const char* messageId);
+
     bool prepareBuffersForSendDeviceInfo ();
 
     void generateMessageId (char* messageIdBuffer);

@@ -25,6 +25,9 @@ class FramPacketStore : public PacketStore {
         bool clearAllMessages ();
 
         int getNumPackets (const char* senderId, const char* messageId);
+        bool packetExists (const char* senderId, const char* messageId, uint8_t packetNum);
+        bool packetExists (const char* senderId, const char* messageId, uint8_t packetNum, PacketStatus status);
+
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength);
         int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength, PacketStatus status);

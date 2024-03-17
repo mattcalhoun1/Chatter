@@ -21,6 +21,9 @@ class PacketStore : public StorageBase {
         virtual bool clearAllMessages () = 0;
 
         virtual int getNumPackets (const char* senderId, const char* messageId) = 0;
+
+        virtual bool packetExists (const char* senderId, const char* messageId, uint8_t packetNum) = 0;
+     
         virtual int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer) = 0;
         virtual int readPacket (const char* senderId, const char* messageId, int packetNum, uint8_t* buffer, int maxLength) = 0;
         virtual int readMessage (const char* senderId, const char* messageId, uint8_t* buffer, int maxLength);
