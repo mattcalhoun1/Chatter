@@ -46,7 +46,7 @@ class BleClusterAdminInterface : public ClusterAdminInterface {
         bool dumpFrequency (const char* hostClusterId);
         bool dumpChannels (const char* hostClusterId);
         bool dumpAuthType (const char* hostClusterId);
-        bool dumpDevice (const char* deviceId, const char* deviceAlias);
+        bool dumpDeviceAndClusterAlias (const char* deviceId);
         bool dumpLicense (const char* deviceId, const char* deviceAlias);
 };
 

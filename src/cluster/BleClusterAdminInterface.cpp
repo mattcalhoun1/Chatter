@@ -131,6 +131,7 @@ bool BleClusterAdminInterface::isConnected () {
                     logConsole("handling client input");
                     if (handleClientInput((const char*)bleBuffer->getRxBuffer(), bleBuffer->getRxBufferLength(), &bleDevice)) {
                         logConsole("Client successfully handled");
+                        return true;
                     }
                     else {
                         delay(500);
@@ -414,10 +415,11 @@ bool BleClusterAdminInterface::dumpTime () {
     return true;
 }
 
-bool BleClusterAdminInterface::dumpDevice (const char* deviceId, const char* alias) {
+bool BleClusterAdminInterface::dumpDeviceAndClusterAlias (const char* deviceId) {
     bleBuffer->clearTxBuffer();
-    sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_DEVICE, CLUSTER_CFG_DELIMITER, deviceId, alias);
-    bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_DEVICE) + 1 + CHATTER_DEVICE_ID_SIZE + strlen(alias));
+    //sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_DEVICE, CLUSTER_CFG_DELIMITER, deviceId, alias);
+    sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_DEVICE, CLUSTER_CFG_DELIMITER, deviceId, chatter->getClusterAlias());
+    bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_DEVICE) + 1 + CHATTER_DEVICE_ID_SIZE + strlen(chatter->getClusterAlias()));
 
     if (bleBuffer->sendTxBufferToClient()) {
         logConsole("Device ID sent");

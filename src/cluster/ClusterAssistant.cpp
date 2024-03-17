@@ -35,7 +35,6 @@ bool ClusterAssistant::attemptOnboard () {
         !receivedWifiCred || !receivedFrequency || !receivedTime || !receivedPrimaryChannel || !receivedSecondaryChannel) {
         // skip newlines and terms
         while (Serial.peek() == '\0' || Serial.peek() == '\r' || Serial.peek() == '\n') {
-            Serial.println("cleaering a byte");
             Serial.read();
         }
 
@@ -113,7 +112,7 @@ bool ClusterAssistant::attemptOnboard () {
         char wifiSsid[CHATTER_WIFI_STRING_MAX_SIZE + 1];
         char wifiCred[CHATTER_WIFI_STRING_MAX_SIZE + 1];
 
-    clusterStore->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot);
+    clusterStore->addCluster (clusterId, clusterAlias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot);
     Serial.println("New cluster added.");
 
     return true;
@@ -148,6 +147,10 @@ ClusterConfigType ClusterAssistant::ingestClusterData (const char* dataLine, int
             memcpy(clusterId, clusterData, STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE);
             clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1] = 0;
             
+            // remainder is cluster alias
+            memset(clusterAlias, 0, CHATTER_ALIAS_NAME_SIZE+1);
+            memcpy(clusterAlias, clusterData + CHATTER_DEVICE_ID_SIZE, bytesRead - (dataPosition + CHATTER_DEVICE_ID_SIZE));
+
             return ClusterDeviceId;
         }
         else if (memcmp(dataLine, CLUSTER_CFG_TRUST, strlen(CLUSTER_CFG_TRUST)) == 0) {

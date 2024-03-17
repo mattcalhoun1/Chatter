@@ -39,6 +39,7 @@ class ClusterManagerBase {
 
         char newDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
         char clusterId[STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1];
+        char clusterAlias[CHATTER_ALIAS_NAME_SIZE + 1];
 
         char trustedDeviceId[CHATTER_DEVICE_ID_SIZE + 1];
         char alias[CHATTER_ALIAS_NAME_SIZE + 1];

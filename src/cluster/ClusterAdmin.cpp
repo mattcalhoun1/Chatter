@@ -253,7 +253,7 @@ bool ClusterAdmin::genesisRandom (const char* deviceAlias) {
 }
 
 bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, const char* deviceAlias) {
-    dumpDevice(deviceId, deviceAlias);
+    dumpDeviceAndClusterAlias(deviceId);
     dumpTruststore(hostClusterId);
     dumpSymmetricKey(hostClusterId);
     dumpWiFi(hostClusterId);
@@ -262,6 +262,8 @@ bool ClusterAdmin::syncDevice (const char* hostClusterId, const char* deviceId, 
     dumpChannels(hostClusterId);
     dumpAuthType(hostClusterId);
     dumpLicense(deviceId, deviceAlias);
+
+    return true;
 }
 
 bool ClusterAdmin::dumpTruststore (const char* hostClusterId) {
@@ -366,11 +368,11 @@ bool ClusterAdmin::dumpTime () {
     Serial.println(chatter->getRtc()->getSortableTime());
 }
 
-bool ClusterAdmin::dumpDevice (const char* deviceId, const char* deviceAlias) {
+bool ClusterAdmin::dumpDeviceAndClusterAlias (const char* deviceId) {
     Serial.print(CLUSTER_CFG_DEVICE);
     Serial.print(CLUSTER_CFG_DELIMITER);
     Serial.print(deviceId);
-    Serial.println(deviceAlias);
+    Serial.println(chatter->getClusterAlias());
 }
 
 bool ClusterAdmin::generateEncodedLicense (const char* deviceId, const char* deviceAlias) {
@@ -448,8 +450,8 @@ bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceTyp
 
 
     if(chatter->getTrustStore()->addTrustedDevice(newAddress, deviceAlias, devicePublicKey, true)) {
-        syncDevice (hostClusterId, newAddress, deviceAlias);
+        return syncDevice (hostClusterId, newAddress, deviceAlias);
     }
 
-
+    return false;
 }

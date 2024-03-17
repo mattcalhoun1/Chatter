@@ -101,7 +101,7 @@ bool BleClusterAssistant::attemptOnboard () {
                         receivedSecondaryChannel && receivedLicense) {
                     logConsole("Full config received. Adding cluster to storage.");
 
-                    if(clusterStore->addCluster (clusterId, alias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot)) {
+                    if(clusterStore->addCluster (clusterId, clusterAlias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot)) {
                         logConsole("New cluster added. Setting as default.");
                         return chatter->getDeviceStore()->setDefaultClusterId(clusterId);
                     }
