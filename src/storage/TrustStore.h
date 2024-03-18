@@ -16,7 +16,9 @@ class TrustStore : public StorageBase {
     public:
         virtual bool init () = 0;
         virtual List<String> getDeviceIds() = 0;
+        virtual uint8_t populateDeviceIndices (const char* clusterId, uint8_t* deviceIndexBuffer) = 0;
         virtual bool loadPublicKey(const char* deviceId, uint8_t* keyBuffer) = 0;
+        virtual bool loadDeviceId (uint8_t internalId, char* deviceId) = 0;
         virtual bool loadAlias(const char* deviceId, char* aliasBuffer) = 0;
         virtual bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey) = 0;
         virtual bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* key, bool overwrite) = 0;

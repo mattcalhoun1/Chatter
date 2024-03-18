@@ -18,6 +18,8 @@ class FramTrustStore : public TrustStore {
 
         bool init ();
         List<String> getDeviceIds();
+        bool loadDeviceId (uint8_t internalId, char* deviceId);
+        uint8_t populateDeviceIndices (const char* clusterId, uint8_t* deviceIndexBuffer);
         bool loadPublicKey(const char* deviceId, uint8_t* keyBuffer);
         bool loadAlias(const char* deviceId, char* aliasBuffer);
         bool addTrustedDevice (const char* deviceId, const char* alias, const uint8_t* publicKey);
@@ -34,6 +36,7 @@ class FramTrustStore : public TrustStore {
         FramData* datastore;
         uint8_t keyBuffer[FRAM_TRUST_KEYSIZE + 1];
         TrustConfig trustBuffer;
+        char aliasCompareBuffer[CHATTER_ALIAS_NAME_SIZE + 1];
 
 };
 

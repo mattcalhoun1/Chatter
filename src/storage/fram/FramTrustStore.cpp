@@ -14,6 +14,13 @@ void FramTrustStore::populateKeyBuffer(const char* deviceId) {
     keyBuffer[STORAGE_DEVICE_ID_LENGTH] = TrustActive;
 }
 
+bool FramTrustStore::loadDeviceId (uint8_t internalId, char* deviceId) {
+    // grab the device id from teh given slot
+    datastore->readKey(keyBuffer, ZoneTrust, internalId);
+    memcpy(deviceId, keyBuffer, CHATTER_DEVICE_ID_SIZE);
+    return true;
+}
+
 List<String> FramTrustStore::getDeviceIds() {
     List<String> deviceIds;
 
@@ -28,6 +35,55 @@ List<String> FramTrustStore::getDeviceIds() {
     }
     //logConsole("Loaded " + String(deviceIds.getSize()) + " device IDs.");
     return deviceIds;    
+}
+
+uint8_t FramTrustStore::populateDeviceIndices (const char* clusterId, uint8_t* deviceIndexBuffer) {
+    // find all active device indices (slots) that are from the given cluster, and popualte the device index buffer accordingly
+    uint8_t foundCount = 0;
+    uint8_t used = datastore->getNumUsedSlots(ZoneTrust);
+    for (uint8_t slot = 0; slot < used; slot++) {
+        datastore->readKey(keyBuffer, ZoneTrust, slot);
+
+        // only if this key is active
+        if (keyBuffer[STORAGE_DEVICE_ID_LENGTH] == (char)TrustActive) {
+            if (memcmp(clusterId, keyBuffer, CHATTER_LOCAL_NET_ID_SIZE + CHATTER_GLOBAL_NET_ID_SIZE) == 0) {
+                datastore->readRecord(&trustBuffer, slot);
+                memset(aliasCompareBuffer, 0, CHATTER_ALIAS_NAME_SIZE + 1);
+                memcpy(aliasCompareBuffer, trustBuffer.getAlias(), strlen(trustBuffer.getAlias()));
+                bool inserted = false;
+
+                Serial.print("Found alias to insert: ");Serial.println(aliasCompareBuffer);
+
+                // find where to insert
+                for (uint8_t existing = 0; inserted == false && existing < foundCount; existing++) {
+                    datastore->readRecord(&trustBuffer, deviceIndexBuffer[existing]);
+                    Serial.print("Comparing to: "); Serial.println(trustBuffer.getAlias());
+
+                    if (strcmp(aliasCompareBuffer, trustBuffer.getAlias()) < 0) {
+                        // bump the back of the list further back to make a space
+                        for (uint8_t reverseIndex = foundCount; reverseIndex > existing; reverseIndex--) {
+                            deviceIndexBuffer[reverseIndex] = deviceIndexBuffer[reverseIndex - 1];
+                        }
+
+                        Serial.print("Inserting at position: "); Serial.println(existing);
+
+                        // insert the record here
+                        inserted = true;
+                        deviceIndexBuffer[existing] = slot;
+                        foundCount++;
+                    }
+                }
+
+                if (!inserted) {
+                    Serial.print("Appending at position: "); Serial.println(foundCount);
+                    deviceIndexBuffer[foundCount++] = slot;
+                }
+            }
+
+        }
+    }
+
+    return foundCount;
 }
 
 
