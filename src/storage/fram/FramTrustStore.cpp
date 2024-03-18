@@ -24,7 +24,7 @@ bool FramTrustStore::loadDeviceId (uint8_t internalId, char* deviceId) {
 List<String> FramTrustStore::getDeviceIds() {
     List<String> deviceIds;
 
-    logConsole("Loading device IDs...");
+    //logConsole("Loading device IDs...");
     uint8_t used = datastore->getNumUsedSlots(ZoneTrust);
     for (uint8_t slot = 0; slot < used; slot++) {
         datastore->readKey(keyBuffer, ZoneTrust, slot);
@@ -52,20 +52,15 @@ uint8_t FramTrustStore::populateDeviceIndices (const char* clusterId, uint8_t* d
                 memcpy(aliasCompareBuffer, trustBuffer.getAlias(), strlen(trustBuffer.getAlias()));
                 bool inserted = false;
 
-                Serial.print("Found alias to insert: ");Serial.println(aliasCompareBuffer);
-
                 // find where to insert
                 for (uint8_t existing = 0; inserted == false && existing < foundCount; existing++) {
                     datastore->readRecord(&trustBuffer, deviceIndexBuffer[existing]);
-                    Serial.print("Comparing to: "); Serial.println(trustBuffer.getAlias());
 
                     if (strcmp(aliasCompareBuffer, trustBuffer.getAlias()) < 0) {
                         // bump the back of the list further back to make a space
                         for (uint8_t reverseIndex = foundCount; reverseIndex > existing; reverseIndex--) {
                             deviceIndexBuffer[reverseIndex] = deviceIndexBuffer[reverseIndex - 1];
                         }
-
-                        Serial.print("Inserting at position: "); Serial.println(existing);
 
                         // insert the record here
                         inserted = true;
@@ -75,7 +70,6 @@ uint8_t FramTrustStore::populateDeviceIndices (const char* clusterId, uint8_t* d
                 }
 
                 if (!inserted) {
-                    Serial.print("Appending at position: "); Serial.println(foundCount);
                     deviceIndexBuffer[foundCount++] = slot;
                 }
             }
