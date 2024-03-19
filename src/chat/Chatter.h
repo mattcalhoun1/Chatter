@@ -148,7 +148,7 @@ class Chatter : ChatStatusCallback {
 
     void ingestPacketMetadata (ChatterChannel* channel);
     void primeSendBuffer (const char* recipientDeviceId, ChatterChannel* channel, bool isSigned, bool isHeader, bool isFooter, char* messageId, char* chunkId,  bool forceUnencrypted);
-    int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted);
+    int populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted, const char* receipientId, bool isBroadcast);
 
     bool isCompleteSignedMessage (const char* senderDeviceId, const char* messageId);
 
@@ -209,7 +209,7 @@ class Chatter : ChatStatusCallback {
     uint8_t footerBuffer[CHATTER_FOOTER_BUFFER_SIZE]; // shared by receive and send, for slightly differnt purposes
     uint8_t hashBuffer[CHATTER_HASH_SIZE]; // used when generating hashes for footer
     uint8_t headerBuffer[CHATTER_HEADER_BUFFER_SIZE];
-    uint8_t senderPublicKey[ENC_PUB_KEY_SIZE];
+    uint8_t otherDevicePublicKey[ENC_PUB_KEY_SIZE];
     
     //uint8_t receiveBuffer[UDP_MAX_MESSAGE_LEN];
     //int receiveBufferSize;

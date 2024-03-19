@@ -16,6 +16,9 @@ class ChaChaAlgo : public EncryptionAlgo {
     void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
     void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
 
+    void encryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
+    void decryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
+
     void prepareForEncryption (uint8_t* unencryptedBuffer, int unencryptedBufferSize, uint8_t* encryptedBuffer, int encryptedBufferSize);
     void prepareForVolatileEncryption (uint8_t* unencryptedBuffer, int unencryptedBufferSize, uint8_t* encryptedBuffer, int encryptedBufferSize);
 
@@ -26,6 +29,7 @@ class ChaChaAlgo : public EncryptionAlgo {
 
     ChaCha chacha;
     ChaCha volatileChacha;
+    ChaCha tempChacha;
 };
 
 #endif

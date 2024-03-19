@@ -19,6 +19,9 @@ class EncryptionAlgo {
     virtual void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
     virtual void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
 
+    virtual void encryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
+    virtual void decryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
+
     virtual bool generateSymmetricKey (uint8_t* keyBuffer, uint8_t length) = 0;
 };
 

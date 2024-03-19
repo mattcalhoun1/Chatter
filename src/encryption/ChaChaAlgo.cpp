@@ -35,6 +35,22 @@ void ChaChaAlgo::encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint
     volatileChacha.encrypt(encryptedBuffer, unencryptedBuffer, len);
 }
 
+void ChaChaAlgo::encryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) {
+    tempChacha.clear();
+    tempChacha.setKey(sharedSecret16, ENC_SYMMETRIC_KEY_SIZE);
+    tempChacha.setIV(iv, ENC_IV_SIZE);
+    tempChacha.encrypt(encryptedBuffer, unencryptedBuffer, len);
+    tempChacha.clear();
+}
+
+void ChaChaAlgo::decryptUsingSecret(const uint8_t* sharedSecret16, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) {
+    tempChacha.clear();
+    tempChacha.setKey(sharedSecret16, ENC_SYMMETRIC_KEY_SIZE);
+    tempChacha.setIV(iv, ENC_IV_SIZE);
+    tempChacha.decrypt(unencryptedBuffer, encryptedBuffer, len);
+    tempChacha.clear();
+}
+
 void ChaChaAlgo::decrypt(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) {
     chacha.decrypt(unencryptedBuffer, encryptedBuffer, len);
 }

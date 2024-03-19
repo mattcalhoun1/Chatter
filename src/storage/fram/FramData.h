@@ -67,6 +67,14 @@
 #define FRAM_LICENSE_VOLATILE false
 #define FRAM_LICENSE_SLOTS FRAM_CLUSTER_SLOTS // same as # of clusters, we need a license slot for each one
 
+// still thinking through message layout
+//#define FRAM_MESSAGE_LOC FRAM_LICENSE_LOC + (FRAM_LICENSE_KEYSIZE + FRAM_LICENSE_DATASIZE) * FRAM_LICENSE_SLOTS + FRAM_ZONE_METADATA_SIZE //  
+//#define FRAM_MESSAGE_KEYSIZE STORAGE_GLOBAL_NET_ID_SIZE + STORAGE_LOCAL_NET_ID_SIZE + 1 // +1 for status
+//#define FRAM_MESSAGE_DATASIZE CHATTER_DEVICE_ID_SIZE + 64 // just the signer and the sig, unencrypted
+//#define FRAM_MESSAGE_ENCRYPTED true
+//#define FRAM_MESSAGE_VOLATILE false
+//#define FRAM_MESSAGE_SLOTS FRAM_CLUSTER_SLOTS // same as # of clusters, we need a license slot for each one
+
 #define FRAM_NULL 255
 #define FRAM_MAX_KEYSIZE FRAM_DEVICE_KEYSIZE
 

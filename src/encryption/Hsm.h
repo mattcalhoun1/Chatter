@@ -22,8 +22,12 @@ class Hsm {
         // encrypt/decrypt, and place the result in the appropriate buffer.
         virtual void encrypt(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
         virtual void decrypt(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
+
         virtual void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
         virtual void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
+
+        virtual void encryptForRecipient(const uint8_t* recipientPublicKey, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) = 0;
+        virtual void decryptFromSender(const uint8_t* senderPublicKey, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) = 0;
 
         virtual bool factoryReset () = 0;
 };

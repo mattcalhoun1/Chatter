@@ -67,8 +67,45 @@ void PseudoHsm::decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t
     algo->decryptVolatile(encryptedBuffer, len, unencryptedBuffer, unencryptedBufferSize);
 }
 
+void PseudoHsm::encryptForRecipient(const uint8_t* recipientPublicKey, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize) {
+    if (generateTempSymmetricKey(recipientPublicKey, ENC_SYMMETRIC_KEY_SIZE)) {
+        algo->encryptUsingSecret(tempSymmetricKey, unencryptedBuffer, len, encryptedBuffer, encryptedBufferSize);
+    }
+    else {
+        logConsole("Unable to generate temp key for recipent");
+    }
+}
+
+void PseudoHsm::decryptFromSender(const uint8_t* senderPublicKey, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize) {
+    if (generateTempSymmetricKey(senderPublicKey, ENC_SYMMETRIC_KEY_SIZE)) {
+        algo->decryptUsingSecret(tempSymmetricKey, encryptedBuffer, len, unencryptedBuffer, unencryptedBufferSize);
+    }
+    else {
+        logConsole("Unable to generate temp key for sender");
+    }
+}
+
 bool PseudoHsm::generateSymmetricKey (uint8_t* keyBuffer, uint8_t length) {
     return algo->generateSymmetricKey(keyBuffer, length);
+}
+
+bool PseudoHsm::generateTempSymmetricKey(const uint8_t* otherDevicePublicKey, uint8_t keySize) {
+    memset(tempSymmetricKey, 0, ENC_SYMMETRIC_KEY_SIZE*2);
+    if(uECC_shared_secret(otherDevicePublicKey, signingKey, tempSymmetricKey, curve) == 1) {
+        SHA256 hasher;
+        hasher.update(tempSymmetricKey, ENC_SYMMETRIC_KEY_SIZE*2);
+
+        // wipe the symmetric key and replace with the hash
+        memset(tempSymmetricKey, 0, ENC_SYMMETRIC_KEY_SIZE*2);
+        hasher.finalize(tempSymmetricKey, hasher.hashSize());
+
+        // trim
+        memset(tempSymmetricKey + keySize, 0, ENC_SYMMETRIC_KEY_SIZE*2 - keySize);
+        
+        return true;
+    }
+
+    return false;
 }
 
 int PseudoHsm::rng(uint8_t *dest, unsigned size) {

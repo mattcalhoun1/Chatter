@@ -11,6 +11,8 @@
 #ifndef PSEUDOHSM_H
 #define PSEUDOHSM_H
 
+#define ENC_TEMP_SHARED_SECRET_SIZE 20
+
 class PseudoHsm : public Hsm {
     public:
         PseudoHsm (DeviceStore* _deviceStore, ClusterStore* _clusterStore) { deviceStore = _deviceStore; clusterStore = _clusterStore; }
@@ -30,8 +32,12 @@ class PseudoHsm : public Hsm {
 
         void encrypt(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
         void decrypt(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
+
         void encryptVolatile(const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
         void decryptVolatile(const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
+
+        void encryptForRecipient(const uint8_t* recipientPublicKey, const uint8_t* unencryptedBuffer, int len, uint8_t* encryptedBuffer, int encryptedBufferSize);
+        void decryptFromSender(const uint8_t* senderPublicKey, const uint8_t* encryptedBuffer, int len, uint8_t* unencryptedBuffer, int unencryptedBufferSize);
 
         bool generateSymmetricKey (uint8_t* keyBuffer, uint8_t length);
 
@@ -49,6 +55,10 @@ class PseudoHsm : public Hsm {
 
         uint8_t signingKey[ENC_PRIV_KEY_SIZE];
         uint8_t publicKey[ENC_PUB_KEY_SIZE];
+
+        uint8_t tempSymmetricKey[ENC_SYMMETRIC_KEY_SIZE*2];
+        bool generateTempSymmetricKey (const uint8_t* otherDevicePublicKey, uint8_t keySize);
+
         const struct uECC_Curve_t * curve = uECC_secp160r1();
         bool generateAndSaveNewKeypair ();
         void generateNextVolatileKey();

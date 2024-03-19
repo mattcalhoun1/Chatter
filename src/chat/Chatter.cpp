@@ -178,7 +178,7 @@ bool Chatter::isExpired() {
 }
 
 bool Chatter::isSenderKnown (const char* senderId) {
-    return trustStore->loadPublicKey((char*)receiveBuffer.sender, senderPublicKey);
+    return trustStore->loadPublicKey((char*)receiveBuffer.sender, otherDevicePublicKey);
 }
 
 bool Chatter::validateSignature() {
@@ -191,12 +191,12 @@ bool Chatter::validateSignature(bool checkHash) {
     // bridge only checks sig, not hash. dont want to decrypt
     if(checkHash == false || packetStore->hashMatches((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId)) {
         // check signature now
-        if (trustStore->loadPublicKey((char*)receiveBuffer.sender, senderPublicKey)) {
+        if (trustStore->loadPublicKey((char*)receiveBuffer.sender, otherDevicePublicKey)) {
             int packetSize = packetStore->readPacket((char*)receiveBuffer.sender, (char*)receiveBuffer.messageId, CHATTER_SIGNATURE_PACKET_ID, footerBuffer, receiveBuffer.headerLength + CHATTER_HASH_SIZE + CHATTER_SIGNATURE_LENGTH);
 
             if (packetSize == receiveBuffer.headerLength + CHATTER_HASH_SIZE + CHATTER_SIGNATURE_LENGTH) {
                 uint8_t* providedSignature = footerBuffer + receiveBuffer.headerLength + CHATTER_HASH_SIZE; // skip the hash to get to the sig
-                encryptor->setPublicKeyBuffer(senderPublicKey);
+                encryptor->setPublicKeyBuffer(otherDevicePublicKey);
                 encryptor->setSignatureBuffer(providedSignature);
                 encryptor->setMessageBuffer(footerBuffer + receiveBuffer.headerLength);
                 if(encryptor->verify()) {
@@ -415,7 +415,7 @@ bool Chatter::retrieveMessage () {
             // in bridge mode, we look at all packets.
             // otherwise, just direct and broadcast
             if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0 || strcmp((const char*) receiveBuffer.recipient, clusterBroadcastId) == 0) {
-                //bool otherRecipient = strcmp((const char*)receiveBuffer.recipient, deviceId) != 0;
+                bool directMessage = strcmp((const char*)receiveBuffer.recipient, deviceId) == 0;
 
                 /*logConsole("To: " + String((char*)receiveBuffer.recipient));
                 logConsole("From: " + String((char*)receiveBuffer.sender));
@@ -440,7 +440,20 @@ bool Chatter::retrieveMessage () {
                         int encryptedLength = receiveBuffer.contentLength; // exclude header
                         uint8_t* encryptedMessage = (uint8_t*)(receiveBuffer.rawMessage + receiveBuffer.headerLength);
 
-                        encryptor->decrypt(encryptedMessage, encryptedLength);
+                        // if this device is the direct recipient, it should be encrypted with the sender's key
+                        if (directMessage) {
+                            // this check also places sender key into other device pub key buffer
+                            if (isSenderKnown ((const char*)receiveBuffer.sender)) {
+                                encryptor->decryptFromSender(otherDevicePublicKey, encryptedMessage, encryptedLength);
+                            }
+                            else {
+                                logConsole("Will not be able to decrypt this message, do not know sender");
+                            }
+                        }
+                        else {
+                            // otherwise, it's encrypted with cluster key
+                            encryptor->decrypt(encryptedMessage, encryptedLength);
+                        }
                         uint8_t* unencryptedBuffer = encryptor->getUnencryptedBuffer();
                         int unencryptedLen = encryptor->getUnencryptedBufferLength();
 
@@ -710,13 +723,23 @@ void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* ch
     }
 }
 
-int Chatter::populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted) {
+int Chatter::populateSendBufferContent (uint8_t* message, int length, ChatterChannel* channel, bool isMetadata, bool forceUnencrypted, const char* recipientId, bool isBroadcast) {
     uint8_t* rawContentArea = sendBuffer + CHATTER_PACKET_HEADER_LENGTH;
     int fullMessageLength = length + CHATTER_PACKET_HEADER_LENGTH; // if encrypted, this length will change
 
     if (channel->isEncrypted() && isMetadata == false && forceUnencrypted == false) {
         // encrypt the message
-        encryptor->encrypt((const char*)message, length);
+        if (isBroadcast) {
+            encryptor->encrypt((const char*)message, length);
+        }
+        else {
+            if (trustStore->loadPublicKey(recipientId, otherDevicePublicKey)) {
+                encryptor->encryptForRecipient(otherDevicePublicKey, (const char*)message, length);
+            }
+            else {
+                logConsole("Unable to load other device pub key from truststore. Send will fail.");
+            }
+        }
         int encryptedSize = encryptor->getEncryptedBufferLength();
 
         for (int i = 0; i < encryptedSize; i++) {
@@ -876,8 +899,6 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
     char messageId[CHATTER_MESSAGE_ID_SIZE + 1];
     generateMessageId(messageId);
 
-    Serial.print("MessageID: "); Serial.println(messageId);
-
     // this does not take into account that encryption can change size of message
     int contentChunkSize = CHATTER_PACKET_SIZE - CHATTER_PACKET_HEADER_LENGTH;
     int chunks = ceil(length / ((float)CHATTER_PACKET_SIZE - (float)CHATTER_PACKET_HEADER_LENGTH));
@@ -885,7 +906,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
 
     chunks += 1; // header
 
-    logConsole("Message Length: " + String(length) + ", Content chunk size: " + String(contentChunkSize) + ", Chunks: " + String(chunks) + ", Last chunk: " + String(lastChunkSize));
+    //logConsole("Message Length: " + String(length) + ", Content chunk size: " + String(contentChunkSize) + ", Chunks: " + String(chunks) + ", Last chunk: " + String(lastChunkSize));
     
     // send the header first, unencrypted
     char chunkId[CHATTER_CHUNK_ID_SIZE];
@@ -893,7 +914,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
     sprintf(chunkId, "%03d", chunks);
     primeSendBuffer (recipientDeviceId, channel, false, true, false, messageId, chunkId, forceUnencrypted);
     int thisHeaderLength = generateHeader(recipientDeviceId, messageId, flags);
-    int fullMetadataLength = populateSendBufferContent (headerBuffer, thisHeaderLength, channel, true, forceUnencrypted);
+    int fullMetadataLength = populateSendBufferContent (headerBuffer, thisHeaderLength, channel, true, forceUnencrypted, recipientDeviceId, isBroadcast);
 
     if (isBroadcast) {
         if (!channel->broadcast(sendBuffer, fullMetadataLength)) {
@@ -922,7 +943,7 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         uint8_t* messagePosition = message + ((chunkNum-1) * contentChunkSize);
 
         //logConsole("next chunk starts at position: "  + String(chunkNum * contentChunkSize) + " of " + String(length));
-        int finalFullLength = populateSendBufferContent (messagePosition, thisChunkLength, channel, false, forceUnencrypted);
+        int finalFullLength = populateSendBufferContent (messagePosition, thisChunkLength, channel, false, forceUnencrypted, recipientDeviceId, isBroadcast);
 
         // send it
         if (isBroadcast) {
@@ -945,9 +966,9 @@ bool Chatter::sendViaIntermediary(uint8_t *message, int length, const char* reci
         int thisFooterLength = generateFooter(recipientDeviceId, messageId, message, length);
 
         // prime with a header
-        primeSendBuffer (recipientDeviceId, channel, true, false, true, messageId, "000", forceUnencrypted);
+        primeSendBuffer (recipientDeviceId, channel, true, false, true, messageId, CHATTER_SIGNATURE_CHUNK_ID, forceUnencrypted);
 
-        int finalFullLength = populateSendBufferContent (footerBuffer, thisFooterLength, channel, true, forceUnencrypted); // don't encrypt footer, so sig can be validated
+        int finalFullLength = populateSendBufferContent (footerBuffer, thisFooterLength, channel, true, forceUnencrypted, recipientDeviceId, isBroadcast); // don't encrypt footer, so sig can be validated
         if (isBroadcast) {
             if (!channel->broadcast(sendBuffer, finalFullLength)) {
                 return false;

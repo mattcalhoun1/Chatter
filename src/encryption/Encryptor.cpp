@@ -35,6 +35,20 @@ void Encryptor::encryptVolatile(const char* plainText, int len) {
 
 }
 
+void Encryptor:: encryptForRecipient (const uint8_t* recipientPublicKey, const char* plainText, int len) {
+    baseUnencryptedBufferLength = len;
+    hsm->prepareForEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    if (len < ENC_UNENCRYPTED_BUFFER_SIZE) {
+        // copy the value to the encrypted buffer
+        memcpy(this->unencryptedBuffer, plainText, len); 
+
+        // encrypt the buffer
+        hsm->encryptForRecipient(recipientPublicKey, this->unencryptedBuffer, len, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: cleartext too large for unencrypted buffer!");
+    }
+}
+
 // decrypt the value, place cleartext in unencrypted buffer
 void Encryptor::decrypt(uint8_t* encrypted, int len) {
     baseEncryptedBufferLength = len;
@@ -64,7 +78,21 @@ void Encryptor::decryptVolatile(uint8_t* encrypted, int len) {
     } else {
         logConsole("ERROR: clear text too large for buffer!");
     }
+}
 
+void Encryptor::decryptFromSender (const uint8_t* senderPublicKey, uint8_t* encrypted, int len) {
+    baseEncryptedBufferLength = len;
+    hsm->prepareForVolatileEncryption(this->unencryptedBuffer, ENC_UNENCRYPTED_BUFFER_SIZE, this->encryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+
+    if (len < ENC_ENCRYPTED_BUFFER_SIZE) {
+        // copy encrypted value into encrypted buffer
+        memcpy(this->encryptedBuffer, encrypted, len); 
+
+        // decrypt buffer
+        hsm->decryptFromSender(senderPublicKey, this->encryptedBuffer, len, this->unencryptedBuffer, ENC_ENCRYPTED_BUFFER_SIZE);
+    } else {
+        logConsole("ERROR: clear text too large for buffer!");
+    }
 }
 
 long Encryptor::getRandom() {

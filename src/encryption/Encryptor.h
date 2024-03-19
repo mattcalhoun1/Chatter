@@ -34,10 +34,12 @@ class Encryptor {
     // encrypt the value, place cleartext in encrypted buffer
     void encrypt(const char* plainText, int len);
     void encryptVolatile(const char* plainText, int len);
+    void encryptForRecipient (const uint8_t* recipientPublicKey, const char* plainText, int len);
 
     // decrypt the value, place cleartext in unencrypted buffer
     void decrypt(uint8_t* encrypted, int len);
     void decryptVolatile(uint8_t* encrypted, int len);
+    void decryptFromSender (const uint8_t* senderPublicKey, uint8_t* encrypted, int len);
 
     // buffers containing the result of encryption or decryption
     uint8_t* getEncryptedBuffer();
