@@ -117,6 +117,7 @@ class Chatter : ChatStatusCallback {
     bool isRunning () {return running;}
 
     void updateChatStatus (uint8_t channelNum, ChatStatus newStatus);
+    void updateChatStatus (const char* statusMessage);
 
     bool selfAnnounce (bool force);
 
@@ -139,6 +140,8 @@ class Chatter : ChatStatusCallback {
 
     void logDebugInfo ();
     bool isRootDevice (const char* deviceId);
+
+    bool clusterHasDevice (ChatterDeviceType _deviceType);
 
   private:
     ChatterDeviceType deviceType;
@@ -233,10 +236,10 @@ class Chatter : ChatStatusCallback {
     // for key exchange
     uint8_t licenseBuffer[ENC_SIGNATURE_SIZE];
     uint8_t pubKeyBuffer[ENC_SIGNATURE_SIZE];
-    char licenseSigner[CHATTER_DEVICE_ID_SIZE];
+    char licenseSigner[CHATTER_DEVICE_ID_SIZE + 1];
     uint8_t internalMessageBuffer[CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE];
-    char clusterAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
-    char deviceAliasBuffer[CHATTER_ALIAS_NAME_SIZE];
+    char clusterAliasBuffer[CHATTER_ALIAS_NAME_SIZE + 1];
+    char deviceAliasBuffer[CHATTER_ALIAS_NAME_SIZE + 1];
     char deviceAlias[CHATTER_ALIAS_NAME_SIZE+1];
     char clusterBroadcastId[CHATTER_DEVICE_ID_SIZE + 1];
 };

@@ -42,6 +42,8 @@ class LoRaTrans {
     bool fireAndForget(uint8_t *message, int length, uint8_t address);
     int getLastRssi ();
 
+    bool putToSleep ();
+
     bool init ();
     bool isRunning ();
 

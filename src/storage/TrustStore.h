@@ -25,6 +25,7 @@ class TrustStore : public StorageBase {
         virtual bool removeTrustedDevice (const char* deviceId) = 0;
         virtual bool clearTruststore () = 0;
         virtual bool findDeviceId (const uint8_t* key, const char* clusterId, char* deviceIdBuffer) = 0;
+        virtual bool isDeviceTrusted (const char* clusterId, char* deviceId) = 0;
         virtual bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer) = 0;
         virtual TrustDeviceChannel getPreferredChannel (const char* deviceId) {return TrustChannelLora;}
         virtual TrustDeviceChannel getSecondaryChannel (const char* deviceId) {return TrustChannelUdp;}

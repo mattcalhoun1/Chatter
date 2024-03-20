@@ -176,6 +176,11 @@ bool LoRaTrans::send(uint8_t* message, int length, uint8_t address) {
   return sent;
 }
 
+bool LoRaTrans::putToSleep() {
+    rfm9x->sleep();
+    return true;
+}
+
 long LoRaTrans::retrieveMessage() {
   uint8_t len = sizeof(buf);
   uint8_t from;

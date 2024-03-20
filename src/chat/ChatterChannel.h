@@ -46,6 +46,8 @@ class ChatterChannel {
     virtual bool isConnected () = 0;
     virtual bool isEncrypted () = 0; // whether encryption is required
     virtual bool isSigned () = 0; // whether sig is required/validated
+
+    virtual bool putToSleep () = 0;
 };
 
 #endif

@@ -108,6 +108,7 @@ bool BleClusterAdminInterface::isConnected () {
     connected = false;
     bleDevice = BLE.central();
     if (bleDevice && bleDevice.connected()) {
+        chatter->updateChatStatus("BLE: connected");
         logConsole("Connected to central: ");
         // print the central's MAC address:
         logConsole(bleDevice.address());    
@@ -166,6 +167,7 @@ bool BleClusterAdminInterface::ingestPublicKeyAndAlias (byte* pubKeyBuffer, char
     bool validKey = true; // assume valid until we find a bad byte
     unsigned long startTime = millis();
 
+    chatter->updateChatStatus("BLE: receive device");
     if (bleBuffer->send("PUB")) {
         // pub key can only be hex with no spaces
         memset(hexEncodedPubKey, 0, ENC_PUB_KEY_SIZE * 2 + 1);
@@ -233,12 +235,17 @@ bool BleClusterAdminInterface::dumpTruststore (const char* hostClusterId) {
     Encryptor* encryptor = chatter->getEncryptor();
 
     List<String> others = trustStore->getDeviceIds();
+    char trustStatus[24];
+    uint8_t totalTrusts = 0;
     char otherDeviceAlias[CHATTER_ALIAS_NAME_SIZE + 1];
     for (int i = 0; i < others.getSize(); i++) {
         const String& otherDeviceStr = others[i];
         // if its pub key of device on this cluser, dump it
         const char* otherDeviceId = otherDeviceStr.c_str();
         if (memcmp(otherDeviceId, hostClusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE) == 0) {
+            sprintf(trustStatus, "BLE: Trust %d", totalTrusts++);
+            chatter->updateChatStatus(trustStatus);
+
             trustStore->loadAlias(otherDeviceId, otherDeviceAlias);
             trustStore->loadPublicKey(otherDeviceId, pubKey);
 
@@ -262,6 +269,7 @@ bool BleClusterAdminInterface::dumpTruststore (const char* hostClusterId) {
 }
 
 bool BleClusterAdminInterface::dumpSymmetricKey(const char* hostClusterId) {
+    chatter->updateChatStatus("BLE: symmetric key");
     chatter->getClusterStore()->loadSymmetricKey(hostClusterId, symmetricKey);
 
     Encryptor* encryptor = chatter->getEncryptor();
@@ -310,6 +318,7 @@ bool BleClusterAdminInterface::dumpSymmetricKey(const char* hostClusterId) {
 }
 
 bool BleClusterAdminInterface::dumpWiFi (const char* hostClusterId) {
+    chatter->updateChatStatus("BLE: WiFi (if any)");
     // CLUSTER_CFG_WIFI_SSID , CLUSTER_CFG_WIFI_CRED
     chatter->getClusterStore()->loadWifiSsid(hostClusterId, wifiSsid);
     chatter->getClusterStore()->loadWifiCred(hostClusterId, wifiCred);
@@ -342,6 +351,7 @@ bool BleClusterAdminInterface::dumpWiFi (const char* hostClusterId) {
 }
 
 bool BleClusterAdminInterface::dumpFrequency (const char* hostClusterId) {
+    chatter->updateChatStatus("BLE: LoRa frequency");
     bleBuffer->clearTxBuffer();
     sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%01f", CLUSTER_CFG_FREQ, CLUSTER_CFG_DELIMITER, chatter->getClusterStore()->getFrequency(hostClusterId));
     bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_FREQ) + 1 + 5);
@@ -356,6 +366,7 @@ bool BleClusterAdminInterface::dumpFrequency (const char* hostClusterId) {
 }
 
 bool BleClusterAdminInterface::dumpChannels (const char* hostClusterId) {
+    chatter->updateChatStatus("BLE: channels");
     bleBuffer->clearTxBuffer();
     sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s", CLUSTER_CFG_PRIMARY, CLUSTER_CFG_DELIMITER, (char)chatter->getClusterStore()->getPreferredChannel(hostClusterId));
     bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_PRIMARY) + 1 + 1);
@@ -383,6 +394,7 @@ bool BleClusterAdminInterface::dumpChannels (const char* hostClusterId) {
 }
 
 bool BleClusterAdminInterface::dumpAuthType (const char* hostClusterId) {
+    chatter->updateChatStatus("BLE: auth type");
     bleBuffer->clearTxBuffer();
     sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s", CLUSTER_CFG_AUTH, CLUSTER_CFG_DELIMITER, (char)chatter->getClusterStore()->getAuthType(hostClusterId));
     bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_AUTH) + 1 + 1);
@@ -400,6 +412,7 @@ bool BleClusterAdminInterface::dumpAuthType (const char* hostClusterId) {
 
 
 bool BleClusterAdminInterface::dumpTime () {
+    chatter->updateChatStatus("BLE: time");
     bleBuffer->clearTxBuffer();
     sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s", CLUSTER_CFG_TIME, CLUSTER_CFG_DELIMITER, chatter->getRtc()->getSortableTime());
     bleBuffer->setTxBufferLength(strlen(CLUSTER_CFG_TIME) + 1 + 12);
@@ -416,6 +429,7 @@ bool BleClusterAdminInterface::dumpTime () {
 }
 
 bool BleClusterAdminInterface::dumpDeviceAndClusterAlias (const char* deviceId) {
+    chatter->updateChatStatus("BLE: alias");
     bleBuffer->clearTxBuffer();
     //sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_DEVICE, CLUSTER_CFG_DELIMITER, deviceId, alias);
     sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_DEVICE, CLUSTER_CFG_DELIMITER, deviceId, chatter->getClusterAlias());
@@ -433,6 +447,7 @@ bool BleClusterAdminInterface::dumpDeviceAndClusterAlias (const char* deviceId) 
 }
 
 bool BleClusterAdminInterface::dumpLicense (const char* deviceId, const char* deviceAlias) {
+    chatter->updateChatStatus("BLE: license");
     if (generateEncodedLicense(deviceId, deviceAlias)) {
         bleBuffer->clearTxBuffer();
         sprintf((char*)bleBuffer->getTxBuffer(), "%s%c%s%s", CLUSTER_CFG_LICENSE, CLUSTER_CFG_DELIMITER, chatter->getDeviceId(), hexEncodedLicense);

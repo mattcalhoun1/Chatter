@@ -44,6 +44,8 @@ class UARTChannel : public ChatterChannel {
     bool isEncrypted (); // whether encryption is required
     bool isSigned (); // whether sig is required/validated
 
+    bool putToSleep () { return false; } // not yet implemented
+
   private:
     uint8_t messageBuffer[CHATTER_FULL_BUFFER_LEN];
     int lastMessageLength = 0;

@@ -60,6 +60,8 @@ class UdpChannel : public ChatterChannel {
         bool isEncrypted (); // whether encryption is required
         bool isSigned (); // whether sig is required/validated
 
+        bool putToSleep () { return false; } // not yet implemented
+
     protected:
         unsigned long sendNTPpacket(IPAddress& address);
         void printCurrentNet();

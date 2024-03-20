@@ -44,6 +44,8 @@ class LoRaChannel : public ChatterChannel {
         bool isEncrypted (); // whether encryption is required
         bool isSigned (); // whether sig is required/validated
 
+        bool putToSleep ();
+
     private:
         uint8_t channelNum;
         LoRaTrans* lora;

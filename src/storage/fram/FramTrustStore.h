@@ -30,6 +30,8 @@ class FramTrustStore : public TrustStore {
         bool findNextAvailableDeviceId (const char* networkPrefix, int startingAddress, char* deviceIdBuffer);
         TrustDeviceChannel getPreferredChannel (const char* deviceId);
         TrustDeviceChannel getSecondaryChannel (const char* deviceId);
+        bool isDeviceTrusted (const char* clusterId, char* deviceId);
+
 
     private:
         void populateKeyBuffer (const char* deviceId);

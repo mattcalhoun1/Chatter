@@ -157,7 +157,7 @@ bool ClusterAdmin::genesis () {
 
     Serial.println("Adding self to truststore");
     chatter->getHsm()->loadPublicKey(pubKey);
-    chatter->getTrustStore()->addTrustedDevice(newDeviceId, BASE_LORA_ALIAS, pubKey, true);
+    chatter->getTrustStore()->addTrustedDevice(newDeviceId, "rando", pubKey, true);
     
     Serial.println("Adding cluster to storage");
     chatter->getClusterStore()->addCluster (clusterId, "MyCluster", newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, ClusterChannelLora, ClusterChannelUdp, ClusterAuthFull, ClusterLicenseRoot);
@@ -380,10 +380,12 @@ bool ClusterAdmin::generateEncodedLicense (const char* deviceId, const char* dev
     if(chatter->getTrustStore()->loadPublicKey(deviceId, pubKey)) {
         memset(hashBaseBuffer, 0, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE);
         memcpy(hashBaseBuffer, pubKey, ENC_PUB_KEY_SIZE);
-        memcpy(hashBaseBuffer, deviceAlias, strlen(deviceAlias));
+        memcpy(hashBaseBuffer + ENC_PUB_KEY_SIZE, deviceAlias, strlen(deviceAlias));
         //hashBaseBuffer[ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE];
         // sha256 the pub key
-        int hashLength = chatter->getEncryptor()->generateHash((const char*)pubKey, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, hashBaseBuffer);
+
+        // generate hash and overwrite hash base buffer
+        int hashLength = chatter->getEncryptor()->generateHash((const char*)hashBaseBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, hashBuffer);
         
         // sign it
         chatter->getEncryptor()->setMessageBuffer(hashBuffer);
@@ -399,7 +401,6 @@ bool ClusterAdmin::generateEncodedLicense (const char* deviceId, const char* dev
 }
 
 bool ClusterAdmin::dumpLicense (const char* deviceId, const char* deviceAlias) {
-
     if (generateEncodedLicense(deviceId, deviceAlias)) {
         Serial.print(CLUSTER_CFG_LICENSE);
         Serial.print(CLUSTER_CFG_DELIMITER);
@@ -415,6 +416,7 @@ bool ClusterAdmin::dumpLicense (const char* deviceId, const char* deviceAlias) {
 
 bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceType deviceType, const uint8_t* devicePublicKey, const char* deviceAlias) {
     Serial.println("We will onboard this device");
+    chatter->updateChatStatus("Onboarding");
 
     char newAddress[CHATTER_DEVICE_ID_SIZE + 1];
     memcpy(newAddress, chatter->getDeviceId(), CHATTER_DEVICE_ID_SIZE - 3);
@@ -424,13 +426,13 @@ bool ClusterAdmin::onboardNewDevice (const char* hostClusterId, ChatterDeviceTyp
 
     switch (deviceType) {
         case ChatterDeviceBridgeLora:
-            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_LORA_ADDRESS, 3);
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BRIDGE_LORA_ADDRESS, 3);
             break;
         case ChatterDeviceBridgeWifi:
-            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_WIFI_ADDRESS, 3);
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BRIDGE_WIFI_ADDRESS, 3);
             break;
         case ChatterDeviceBridgeCloud:
-            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BASE_CLOUD_ADDRESS, 3);
+            memcpy(newAddress + (CHATTER_DEVICE_ID_SIZE - 3), BRIDGE_CLOUD_ADDRESS, 3);
             break;
         case ChatterDeviceCommunicator:
             // find the next available communicator address

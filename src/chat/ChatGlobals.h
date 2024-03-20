@@ -5,12 +5,13 @@
 //#define WIFI_ONBOARD true
 #define AIRLIFT_ONBOARD true
 
-#define BASE_LORA_ADDRESS "001" //
-#define BASE_LORA_ALIAS "Base_Lora"
-#define BASE_WIFI_ADDRESS "002"
-#define BASE_WIFI_ALIAS "Base_Wifi"
-#define BASE_CLOUD_ADDRESS "003"
-#define BASE_CLOUD_ALIAS "Base_Cloud"
+#define BRIDGE_LORA_ADDRESS "001" //
+#define BRIDGE_WIFI_ADDRESS "002"
+#define BRIDGE_CLOUD_ADDRESS "003"
+
+#define BRIDGE_LORA_ALIAS "Bridge_LoRa"
+#define BRIDGE_WIFI_ALIAS "Bridge_Wifi"
+#define BRIDGE_CLOUD_ALIAS "Bridge_Cloud"
 
 #define STARTING_DEVICE_ADDRESS 10 // first com device will get this address
 

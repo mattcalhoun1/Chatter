@@ -80,6 +80,12 @@ uint8_t FramTrustStore::populateDeviceIndices (const char* clusterId, uint8_t* d
     return foundCount;
 }
 
+bool FramTrustStore::isDeviceTrusted (const char* clusterId, char* deviceId) {
+    // check for actively trusted device by that id
+    populateKeyBuffer(deviceId);
+    return datastore->getRecordNum(ZoneTrust, keyBuffer) != FRAM_NULL;
+}
+
 
 bool FramTrustStore::findDeviceId (const uint8_t* key, const char* clusterId, char* deviceIdBuffer) {
     // look for that key in the truststore, populate matching device id (if any).

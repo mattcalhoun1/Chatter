@@ -26,6 +26,10 @@ bool LoRaChannel::retrieveMessage () {
     return result;
 }
 
+bool LoRaChannel::putToSleep () {
+    return lora->putToSleep();
+}
+
 uint8_t LoRaChannel::getSelfAddress () {
   return lora->getSelfAddress();
 }

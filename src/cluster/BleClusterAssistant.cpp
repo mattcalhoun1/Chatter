@@ -11,7 +11,9 @@ bool BleClusterAssistant::init () {
 }
 
 bool BleClusterAssistant::attemptOnboard () {
+    chatter->updateChatStatus("BLE: connecting");
     if (connectToPeripheral() && establishBleBuffer()) {
+        chatter->updateChatStatus("BLE: connected");
         // wait for serial buffer write capability
         Encryptor* encryptor = chatter->getEncryptor();
         ClusterStore* clusterStore = chatter->getClusterStore();
@@ -21,6 +23,7 @@ bool BleClusterAssistant::attemptOnboard () {
         bool success = false;
 
         if (sendOnboardRequest()) {
+            chatter->updateChatStatus("BLE: onboard starting");
             logConsole("Onboard request sent and acknowledged. Sending public key.");
 
             if (sendPublicKeyAndAlias(hsm, encryptor, chatter->getDeviceAlias())) {
@@ -51,42 +54,54 @@ bool BleClusterAssistant::attemptOnboard () {
                 {
                     if (bleBuffer->receiveRxBufferFromClient(&peripheral)) {
                         ClusterConfigType typeIngested = ingestClusterData((const char*)bleBuffer->getRxBuffer(), bleBuffer->getRxBufferLength(), trustStore, encryptor);
-                        Serial.print("Ingested: "); Serial.println(typeIngested);
+                        //Serial.print("Ingested: "); Serial.println(typeIngested);
                         switch (typeIngested) {
                             case ClusterDeviceId:
+                                chatter->updateChatStatus("BLE: device id");
                                 receivedId = true;
                                 break;
                             case ClusterKey:
+                                chatter->updateChatStatus("BLE: symmetric key");
                                 receivedKey = true;
                                 break;
                             case ClusterIv:
+                                chatter->updateChatStatus("BLE: iv");
                                 receivedIv = true;
                                 break;
                             case ClusterTrustStore:
+                                chatter->updateChatStatus("BLE: truststore");
                                 receivedTrust = true;
                                 break;
                             case ClusterWifiSsid:
+                                chatter->updateChatStatus("BLE: WiFi (if any)");
                                 receivedWifiSsid = true;
                                 break;
                             case ClusterWifiCred:
+                                chatter->updateChatStatus("BLE: WiFi (if any)");
                                 receivedWifiCred = true;
                                 break;
                             case ClusterFrequency:
+                                chatter->updateChatStatus("BLE: LoRa frequency");
                                 receivedFrequency = true;
                                 break;
                             case ClusterTime:
+                                chatter->updateChatStatus("BLE: time");
                                 receivedTime = true;
                                 break;
                             case ClusterPrimaryChannel:
+                                chatter->updateChatStatus("BLE: channel");
                                 receivedPrimaryChannel = true;
                                 break;
                             case ClusterSecondaryChannel:
+                                chatter->updateChatStatus("BLE: channel");
                                 receivedSecondaryChannel = true;
                                 break;
                             case ClusterAuth:
+                                chatter->updateChatStatus("BLE: auth type");
                                 receivedAuthType = true;
                                 break;
                             case ClusterLicense:
+                                chatter->updateChatStatus("BLE: license");
                                 receivedLicense = true;
                                 break;
                         }
@@ -100,9 +115,11 @@ bool BleClusterAssistant::attemptOnboard () {
                         receivedFrequency && receivedTime && receivedPrimaryChannel && 
                         receivedSecondaryChannel && receivedLicense) {
                     logConsole("Full config received. Adding cluster to storage.");
+                    chatter->updateChatStatus("BLE: device accepted");
 
                     if(clusterStore->addCluster (clusterId, clusterAlias, newDeviceId, symmetricKey, iv, frequency, wifiSsid, wifiCred, primaryChannel, secondaryChannel, authType, ClusterLicenseRoot)) {
                         logConsole("New cluster added. Setting as default.");
+                        chatter->updateChatStatus("BLE: onboard complete");
                         return chatter->getDeviceStore()->setDefaultClusterId(clusterId);
                     }
                     else {

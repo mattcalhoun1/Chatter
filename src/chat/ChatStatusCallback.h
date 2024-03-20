@@ -16,5 +16,6 @@ enum ChatStatus {
 class ChatStatusCallback {
     public:
         virtual void updateChatStatus (uint8_t channelNum, ChatStatus newStatus) = 0;
+        virtual void updateChatStatus (const char* statusMessage);
 };
 #endif

@@ -185,6 +185,26 @@ bool Chatter::validateSignature() {
     return validateSignature(true);
 }
 
+bool Chatter::clusterHasDevice (ChatterDeviceType _deviceType) {
+    // check the truststore to see if that device type exists
+    char otherDeviceId[CHATTER_DEVICE_ID_SIZE];
+    memset(otherDeviceId, 0, CHATTER_DEVICE_ID_SIZE);
+    memcpy(otherDeviceId, clusterId, CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE);
+    switch(_deviceType) {
+        case ChatterDeviceBridgeLora:
+            memcpy(otherDeviceId + CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE, BRIDGE_LORA_ADDRESS, 3);
+            return trustStore->isDeviceTrusted(clusterId, otherDeviceId);
+        case ChatterDeviceBridgeWifi:
+            memcpy(otherDeviceId + CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE, BRIDGE_WIFI_ADDRESS, 3);
+            return trustStore->isDeviceTrusted(clusterId, otherDeviceId);
+        case ChatterDeviceBridgeCloud:
+            memcpy(otherDeviceId + CHATTER_GLOBAL_NET_ID_SIZE + CHATTER_LOCAL_NET_ID_SIZE, BRIDGE_CLOUD_ADDRESS, 3);
+            return trustStore->isDeviceTrusted(clusterId, otherDeviceId);
+    }
+
+    return false;
+}
+
 bool Chatter::validateSignature(bool checkHash) {
     //logConsole("Validating Signature of Message " + String((char*)receiveBuffer.messageId) + " from " + String((char*)receiveBuffer.sender));
 
@@ -228,6 +248,10 @@ void Chatter::updateChatStatus (uint8_t channelNum, ChatStatus newStatus) {
 
     // bubble event out to listener
     statusCallback->updateChatStatus(channelNum, newStatus);
+}
+
+void Chatter::updateChatStatus (const char* statusMessage) {
+    statusCallback->updateChatStatus(statusMessage);
 }
 
 void Chatter::addLoRaChannel (int csPin, int intPin, int rsPin, bool logEnabled) {
@@ -346,6 +370,13 @@ void Chatter::populateReceiveBufferFlags () {
     receiveBuffer.flags.Flag3 = receiveBuffer.content[flagPosition++];
     receiveBuffer.flags.Flag4 = receiveBuffer.content[flagPosition++];
     receiveBuffer.flags.Flag5 = receiveBuffer.content[flagPosition++];
+
+    Serial.print("Flag0: "); Serial.println(receiveBuffer.flags.Flag0);
+    Serial.print("Flag1: "); Serial.println(receiveBuffer.flags.Flag1);
+    Serial.print("Flag2: "); Serial.println(receiveBuffer.flags.Flag2);
+    Serial.print("Flag3: "); Serial.println(receiveBuffer.flags.Flag3);
+    Serial.print("Flag4: "); Serial.println(receiveBuffer.flags.Flag4);
+    Serial.print("Flag5: "); Serial.println(receiveBuffer.flags.Flag5);
 }
 
 void Chatter::ingestPacketMetadata (ChatterChannel* channel) {
@@ -417,12 +448,12 @@ bool Chatter::retrieveMessage () {
             if (mode == BridgeMode || strcmp((const char*)receiveBuffer.recipient, deviceId) == 0 || strcmp((const char*) receiveBuffer.recipient, clusterBroadcastId) == 0) {
                 bool directMessage = strcmp((const char*)receiveBuffer.recipient, deviceId) == 0;
 
-                /*logConsole("To: " + String((char*)receiveBuffer.recipient));
+                logConsole("To: " + String((char*)receiveBuffer.recipient));
                 logConsole("From: " + String((char*)receiveBuffer.sender));
                 logConsole("Message ID: " + String((char*)receiveBuffer.messageId));
                 logConsole("Chunk ID: " + String((char*)receiveBuffer.chunkId));
                 logConsole("Length: " + String(receiveBuffer.rawContentLength));
-                logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));*/
+                logConsole("Is Sig: " + String(receiveBuffer.encryptionFlag == PacketSigned));
 
 
                 if (receiveBuffer.encryptionFlag == PacketEncrypted || receiveBuffer.encryptionFlag == PacketSigned) {
@@ -484,6 +515,7 @@ bool Chatter::retrieveMessage () {
                         if (isExpired() == false) {
                             // is this a device identity message
                             if (receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_ID || receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_EXCHANGE_ID) {
+                                logConsole("Received trust info");
                                 if (receiveDeviceInfo(receiveBuffer.flags.Flag4 == FLAG_CTRL_TYPE_EXCHANGE_ID)) {
                                     logConsole("Newly trusted device. Checking for quarantined messages...");
 
@@ -694,17 +726,14 @@ void Chatter::primeSendBuffer (const char* recipientDeviceId, ChatterChannel* ch
     }
 
     // packet security flag
-    if (forceUnencrypted) {
-        sendBuffer[bufferPos++] = PacketClear;
-    }    
-    else if (isFooter) {
+    if (isFooter) {
         sendBuffer[bufferPos++] = PacketSigned;
-    }
-    else if (isHeader) {
-        sendBuffer[bufferPos++] = PacketClear;
     }
     else if (isSigned) {
         sendBuffer[bufferPos++] = PacketSigned;
+    }
+    else if (isHeader || forceUnencrypted) {
+        sendBuffer[bufferPos++] = PacketClear;
     }
     else if (channel->isEncrypted()) {
         sendBuffer[bufferPos++] = PacketEncrypted;
@@ -998,25 +1027,55 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
     // device info should be sitting in our message buffer. parse it and check it
     // license should be signed appropriately
 
+    Serial.print("Device info: ");
+    for (int i = 0; i < receiveBuffer.contentLength; i++) {
+        Serial.print((char)receiveBuffer.content[i]);
+    }
+    Serial.println("");
+
+
     // trim out the header
     int actualContentLength = 0;
-    for (int i = CHATTER_HEADER_SIZE; i < receiveBuffer.contentLength; i++) {
-        receiveBuffer.content[i-CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
+    for (int i = CHATTER_HEADER_SIZE - 1; i < receiveBuffer.contentLength; i++) {
+        receiveBuffer.content[i - CHATTER_HEADER_SIZE] = receiveBuffer.content[i];
         actualContentLength++;
     }
     if (actualContentLength >= ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + ENC_SIGNATURE_SIZE + CHATTER_ALIAS_NAME_SIZE) {
         int fullFixedSize = ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + CHATTER_ALIAS_NAME_SIZE;
         // pull out the pieces
         memcpy(pubKeyBuffer, receiveBuffer.content, ENC_PUB_KEY_SIZE);
+        memset(deviceAliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE + 1);
         memcpy(deviceAliasBuffer, receiveBuffer.content + ENC_PUB_KEY_SIZE, CHATTER_ALIAS_NAME_SIZE);
 
+        Serial.print("Device pub key: ");
+        for (int i = 0; i < ENC_PUB_KEY_SIZE; i++) {
+            Serial.print(pubKeyBuffer[i]); Serial.print(" ");
+        }
+        Serial.println("");
+
+        Serial.print("Device Alias: "); Serial.println(deviceAliasBuffer);
+
+        memset(licenseSigner, 0, CHATTER_DEVICE_ID_SIZE+1);
         memcpy(licenseSigner, receiveBuffer.content + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, CHATTER_DEVICE_ID_SIZE);
 
-        // dehex the sig into the license buffer
-        encryptor->hexCharacterStringToBytesMax(licenseBuffer, (const char*)receiveBuffer.content + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, ENC_SIGNATURE_SIZE * 2, ENC_SIGNATURE_SIZE);
+        Serial.print("Signed by: ");Serial.println(licenseSigner);
 
-        memset(clusterAliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE);
-        memcpy(clusterAliasBuffer, receiveBuffer.content + fullFixedSize, actualContentLength - fullFixedSize);
+        Serial.print("Encoded license: ");
+        for (int l = 0; l < ENC_SIGNATURE_SIZE* 2; l++) {
+            Serial.print((char)receiveBuffer.content[CHATTER_ALIAS_NAME_SIZE + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + l]);
+        }
+        Serial.println("");
+
+        // dehex the sig into the license buffer
+        encryptor->hexCharacterStringToBytesMax(licenseBuffer, (const char*)receiveBuffer.content + CHATTER_ALIAS_NAME_SIZE + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, ENC_SIGNATURE_SIZE * 2, ENC_SIGNATURE_SIZE);
+
+        Serial.println("License has been dehexed");
+
+        Serial.print("Cluster alias starts at "); Serial.print(fullFixedSize); Serial.print(" and appears to be: "); Serial.print(actualContentLength - fullFixedSize); Serial.println(" bytes long");
+        memset(clusterAliasBuffer, 0, CHATTER_ALIAS_NAME_SIZE+1);
+        memcpy(clusterAliasBuffer, receiveBuffer.content + fullFixedSize, (actualContentLength - fullFixedSize) - 1);
+
+        Serial.print("Cluster Alias: "); Serial.println(clusterAliasBuffer);
 
         // if the network requires root sig, the signer must be root
         if (!isRootDevice(licenseSigner)) {
@@ -1030,15 +1089,32 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
                 return false;
             }
         }
+        else {
+            logConsole("Sender license is root-signed, will be trusted");
+        }
 
         // Load the signer's key
-        if(trustStore->loadPublicKey(licenseSigner, encryptor->getPublicKeyBuffer())) {
+        if(trustStore->loadPublicKey(licenseSigner, otherDevicePublicKey)) {
+            encryptor->setPublicKeyBuffer(otherDevicePublicKey);
 
             // hash the provided pub key and alias
             memset(fullSignBuffer, 0, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE);
             memcpy(fullSignBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
-            memcpy(fullSignBuffer, deviceAliasBuffer, CHATTER_ALIAS_NAME_SIZE);
+            memcpy(fullSignBuffer + ENC_PUB_KEY_SIZE, deviceAliasBuffer, CHATTER_ALIAS_NAME_SIZE);
+
+            Serial.print("hash base: ");
+            for (int i = 0; i < ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE; i++) {
+                Serial.print((char)fullSignBuffer[i]);
+            }
+            Serial.println("");
+
             int hashLength = encryptor->generateHash((const char*)fullSignBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, encryptor->getMessageBuffer());
+
+            Serial.print("Sig base: ");
+            for (int i = 0; i < hashLength; i++) {
+                Serial.print(encryptor->getMessageBuffer()[i]);
+            }
+            Serial.println("");
 
             // check the sig
             encryptor->setSignatureBuffer(licenseBuffer);
@@ -1059,6 +1135,12 @@ bool Chatter::receiveDeviceInfo (bool isExchange) {
 
                 return true;
             }
+            else {
+                logConsole("License signature is invalid");
+            }
+        }
+        else {
+            logConsole("Unable to load license signer key");
         }
     }
     else {
@@ -1077,7 +1159,7 @@ bool Chatter::broadcastDeviceInfo (bool requestBack) {
 
     if (prepareBuffersForSendDeviceInfo()) {
         // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
-        return broadcastUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), &flg);
+        return broadcastUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), &flg);
     }
 
     logConsole("Failed to prepare for send device info");
@@ -1093,7 +1175,7 @@ bool Chatter::sendDeviceInfo (const char* targetDeviceId, bool requestBack) {
 
     if (prepareBuffersForSendDeviceInfo()) {
         // dont encrypt, because it could be bridge that receives, which doesnt store encryption key
-        return sendUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
+        return sendUnencrypted(internalMessageBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2) + strlen(clusterAlias), targetDeviceId, &flg);
     }
 
     logConsole("Failed to prepare for send device info");
@@ -1112,7 +1194,7 @@ bool Chatter::prepareBuffersForSendDeviceInfo () {
 
         // sha256 this device's own pub key
         int hashLength = encryptor->generateHash((const char*)fullSignBuffer, ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, encryptor->getMessageBuffer());
-        
+
         // sign it
         if (encryptor->signMessage()) {
             memcpy(licenseBuffer, encryptor->getSignatureBuffer(), ENC_SIGNATURE_SIZE);
@@ -1133,14 +1215,14 @@ bool Chatter::prepareBuffersForSendDeviceInfo () {
 
     memset(internalMessageBuffer, 0, CHATTER_INTERNAL_MESSAGE_BUFFER_SIZE);
     memcpy(internalMessageBuffer, pubKeyBuffer, ENC_PUB_KEY_SIZE);
-    memcpy(internalMessageBuffer, deviceAlias, strlen(deviceAlias));
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE, deviceAlias, strlen(deviceAlias));
     memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE, licenseSigner, CHATTER_DEVICE_ID_SIZE);
 
     // hex the sig (it likes to have null byte sequences, which messes things up on the other end sometimes)
     encryptor->hexify(licenseBuffer, ENC_SIGNATURE_SIZE);
 
-    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE, encryptor->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
-    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2), clusterAlias, strlen(clusterAlias));
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE + CHATTER_DEVICE_ID_SIZE, encryptor->getHexBuffer(), ENC_SIGNATURE_SIZE*2);
+    memcpy(internalMessageBuffer + ENC_PUB_KEY_SIZE + CHATTER_ALIAS_NAME_SIZE + CHATTER_DEVICE_ID_SIZE + (ENC_SIGNATURE_SIZE*2), clusterAlias, strlen(clusterAlias));
 
     return true;
 }
